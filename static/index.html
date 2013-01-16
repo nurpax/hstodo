@@ -23,6 +23,17 @@
                placeholder="add new todo here">
         <input class="btn-primary" type="submit" value="add">
       </form>
+
+      <!---------------- playing with tags -->
+      <ul>
+        <li ng-repeat="tag in tags">{{tag.tag}}</li>
+      </ul>
+      <form ng-submit="addTag()">
+        <input type="text" ng-model="tagText"  size="20"
+               placeholder="type tag here">
+        <input class="btn-primary" type="submit" value="add">
+      </form>
+
     </div>
   </body>
 </html>
