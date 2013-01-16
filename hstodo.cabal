@@ -1,6 +1,6 @@
-Name:                angularjs-todo
+Name:                hstodo
 Version:             0.1
-Synopsis:            Example of using Angular js with Snap & SQLite
+Synopsis:            Todo web app
 License:             BSD3
 License-file:        LICENSE
 Author:              Janne Hellsten
@@ -14,7 +14,7 @@ Flag development
   Description: Whether to build the server in development (interpreted) mode
   Default: False
 
-Executable angularjs-todo
+Executable hstodo
   hs-source-dirs: src
   main-is:        Main.hs
 
