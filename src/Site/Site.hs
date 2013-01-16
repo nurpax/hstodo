@@ -32,7 +32,7 @@ import           Snap.Extras.JSON
 import           Heist()
 import qualified Heist.Interpreted as I
 ------------------------------------------------------------------------------
-import qualified Model.Db as Db
+import qualified Model as M
 
 import           Site.Application
 import           Site.Util
@@ -78,7 +78,7 @@ handleNewUser =
       lift $ forceLogin user >> (return $ redirect "/")
 
 -- | Run actions with a logged in user or go back to the login screen
-withLoggedInUser :: (Db.User -> H ()) -> H ()
+withLoggedInUser :: (M.User -> H ()) -> H ()
 withLoggedInUser action =
   currentUser >>= go
   where
@@ -86,7 +86,7 @@ withLoggedInUser action =
     go (Just u) = logRunEitherT $ do
       uid  <- tryJust "withLoggedInUser: missing uid" (userId u)
       uid' <- hoistEither (reader T.decimal (unUid uid))
-      return $ action (Db.User uid' (userLogin u))
+      return $ action (M.User uid' (userLogin u))
 
 -- | Run an IO action with an SQLite connection
 withDb :: (S.Connection -> IO a) -> H a
@@ -99,7 +99,7 @@ handleTodos =
   method POST (withLoggedInUser saveTodo)
   where
     getTodos user = do
-      todos <- withDb $ \conn -> Db.listTodos conn user
+      todos <- withDb $ \conn -> M.listTodos conn user
       writeJSON todos
 
     saveTodo user = do
@@ -107,7 +107,7 @@ handleTodos =
       either (const $ return ()) persist newTodo
         where
           persist todo = do
-            savedTodo <- withDb $ \conn -> Db.saveTodo conn user todo
+            savedTodo <- withDb $ \conn -> M.saveTodo conn user todo
             writeJSON savedTodo
 
 -- | Render main page
@@ -142,7 +142,7 @@ app = makeSnaplet "app" "An snaplet example application." Nothing $ do
     -- Grab the DB connection pool from the sqlite snaplet and call
     -- into the Model to create all the DB tables if necessary.
     let conn = sqliteConn $ d ^# snapletValue
-    liftIO $ withMVar conn $ Db.createTables
+    liftIO $ withMVar conn $ M.createTables
 
     addAuthSplices auth
     return $ App h s d a
