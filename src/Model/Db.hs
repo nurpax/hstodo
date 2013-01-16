@@ -53,7 +53,7 @@ instance FromJSON Todo where
     Todo <$> optional (v .: "id")
          <*> v .: "text"
          <*> v .: "done"
-         <*> v .: "tags"
+         <*> (maybeToList <$> optional (v .: "tags"))
   parseJSON _ = mzero
 
 instance ToJSON Todo where
