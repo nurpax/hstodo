@@ -1,0 +1,6 @@
+cabal-dev/
+dist/
+log/access.log
+log/error.log
+site_key.txt
+test.db
