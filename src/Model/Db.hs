@@ -114,7 +114,6 @@ hasTag conn todo tag = do
 
 addTag :: Connection -> Todo -> Tag -> IO Todo
 addTag conn todo tag = do
-  -- TODO how to handle dupe inserts here? just check the local todo tag list?
   tagAlreadySet <- hasTag conn todo tag
   unless tagAlreadySet $
     execute conn "INSERT INTO todo_tag_map (todo_id, tag_id) VALUES (?,?)"
