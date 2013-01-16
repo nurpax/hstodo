@@ -3,8 +3,10 @@
 module Model.Db (
     createTables
   , newTag
+  , tagNameExists
   , addTag
   , removeTag
+  , listTags
   , saveTodo
   , listTodos
   ) where
@@ -41,33 +43,62 @@ createTables conn = do
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE todos ("
-                , "id INTEGER PRIMARY KEY, "
-                , "user_id INTEGER NOT NULL, "
+                , "id       INTEGER PRIMARY KEY, "
+                , "user_id  INTEGER NOT NULL, "
                 , "saved_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "
-                , "text TEXT, "
-                , "done BOOLEAN)"])
+                , "text     TEXT, "
+                , "done     BOOLEAN)"])
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE todo_tag_map ("
                 , "todo_id INTEGER, "
-                , "tag_id INTEGER)"
+                , "tag_id  INTEGER)"
                 ])
 
-      -- TODO multi user schema!!
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE tags ("
-                , "id INTEGER PRIMARY KEY, "
-                , "tag TEXT UNIQUE)"
+                , "id      INTEGER PRIMARY KEY,"
+                , "user_id INTEGER,"
+                , "tag     TEXT,"
+                , "UNIQUE(user_id, tag))"
                 ])
     execute_ conn "COMMIT"
 
--- | Save or update a todo
-newTag :: Connection -> T.Text -> IO Tag
-newTag conn t = do
-  execute conn "INSERT INTO tags (tag) VALUES (?)" (Only t)
-  rowId <- lastInsertRowId conn
-  return $ Tag rowId t
+-- | User already has created a tag with the given name?
+tagNameExists :: Connection -> User -> T.Text -> IO Bool
+tagNameExists conn (User uid _) tag = do
+  [Only nRows] <-
+    query conn "SELECT count(*) FROM tags WHERE user_id = ? AND tag = ?"
+      (uid, tag) :: IO [Only Int]
+  return $ nRows /= 0
+
+-- | Is a Tag already associated with a given Todo item
+hasTag :: Connection -> Todo -> Tag -> IO Bool
+hasTag conn todo tag = do
+  [Only nRows] <-
+    query conn "SELECT count(*) FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
+      (todoId todo, tagId tag) :: IO [Only Int]
+  return $ nRows /= 0
+
+-- | Look for a Tag by its name
+-- Note: use only if you know the tag exists
+tagByName :: Connection -> User -> T.Text -> IO Tag
+tagByName conn (User uid _) tag = do
+  [t] <- query conn "SELECT id,tag FROM tags WHERE user_id = ? and tag = ?" (uid, tag)
+  return t
+
+-- | Create a new tag
+newTag :: Connection -> User -> Tag -> IO Tag
+newTag conn user@(User uid _) t = do
+  tagExists <- tagNameExists conn user (tagText t)
+  if not tagExists then do
+    execute conn "INSERT INTO tags (user_id, tag) VALUES (?, ?)" (uid, tagText t)
+    rowId <- lastInsertRowId conn
+    return $ t { tagId = Just rowId }
+   else do
+    tagByName conn user (tagText t)
+
 
 listTodoTags :: Connection -> Todo -> IO [Tag]
 listTodoTags conn todo =
@@ -104,14 +135,7 @@ saveTodo conn (User uid _) t =
         (todoText t, todoDone t, uid, tid)
       return t
 
-hasTag :: Connection -> Todo -> Tag -> IO Bool
-hasTag conn todo tag = do
-  [Only nRows] <-
-    query conn "SELECT count(*) FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
-      (todoId todo, tagId tag) :: IO [Only Int]
-  return $ nRows /= 0
-
-
+-- | Assign a Tag to a given Todo
 addTag :: Connection -> Todo -> Tag -> IO Todo
 addTag conn todo tag = do
   tagAlreadySet <- hasTag conn todo tag
@@ -121,9 +145,16 @@ addTag conn todo tag = do
   newTags <- listTodoTags conn todo
   return $ todo { todoTags = newTags }
 
+-- | Remove a Tag from a given Todo
 removeTag :: Connection -> Todo -> Tag -> IO Todo
 removeTag conn todo tag = do
-  execute conn "DELETE FROM todo_tag_map WHERE todo_id = ? and tag_id = ?"
+  execute conn "DELETE FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
     (todoId todo, tagId tag)
   newTags <- listTodoTags conn todo
   return $ todo { todoTags = newTags }
+
+
+-- | Retrieve a user's list of tags
+listTags :: Connection -> User -> IO [Tag]
+listTags conn (User uid _) = do
+  query conn "SELECT id,tag FROM tags WHERE user_id = ?" (Only uid)

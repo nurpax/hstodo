@@ -110,6 +110,24 @@ handleTodos =
             savedTodo <- withDb $ \conn -> M.saveTodo conn user todo
             writeJSON savedTodo
 
+-- TODO lot of duplicate code here, find a way to reuse
+handleTags :: H ()
+handleTags =
+  method GET  (withLoggedInUser getTags) <|>
+  method POST (withLoggedInUser saveTag)
+  where
+    getTags user = do
+      tags <- withDb $ \conn -> M.listTags conn user
+      writeJSON tags
+
+    saveTag user = do
+      newTag <- getJSON
+      either (\v -> liftIO $ print v) persist newTag
+        where
+          persist tag = do
+            -- TODO this will never update the tag?? is that ok?
+            (withDb $ \conn -> M.newTag conn user tag) >>= writeJSON
+
 -- | Render main page
 mainPage :: H ()
 mainPage = withLoggedInUser (const $ serveDirectory "static")
@@ -120,6 +138,7 @@ routes = [ ("/login",        with auth handleLoginSubmit)
          , ("/logout",       with auth handleLogout)
          , ("/new_user",     with auth handleNewUser)
          , ("/api/todo",     with auth handleTodos)
+         , ("/api/tag",      with auth handleTags)
          , ("/",             with auth mainPage)
          , ("/static",       serveDirectory "static")
          ]

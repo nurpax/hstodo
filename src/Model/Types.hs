@@ -17,7 +17,7 @@ data User = User Int T.Text
 
 data Tag =
   Tag
-  { tagId :: Int64
+  { tagId   :: Maybe Int64
   , tagText :: T.Text
   } deriving (Show, Eq)
 
@@ -31,13 +31,13 @@ data Todo =
 
 instance FromJSON Tag where
   parseJSON (Object v) =
-    Tag <$> v .: "id"
+    Tag <$> optional (v .: "id")
         <*> v .: "tag"
   parseJSON _ = mzero
 
 instance ToJSON Tag where
   toJSON (Tag i tag) =
-    object [ "id"  .= i
+    object [ "id"  .= fromJust i
            , "tag" .= tag
            ]
 
