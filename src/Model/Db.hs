@@ -22,7 +22,7 @@ data Todo =
   { todoId :: Maybe Int64
   , todoText :: T.Text
   , todoDone :: Bool
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 instance FromJSON Todo where
   parseJSON (Object v) =
