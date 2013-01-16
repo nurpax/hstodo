@@ -23,8 +23,8 @@ testSaveTodo = testCase "save todo" $ do
   withNewDb $ \c -> do
     todos <- Db.listTodos c defaultUser
     [] @=? todos
-    let todo1 = (Db.Todo Nothing "test1" False)
-    let todo2 = (Db.Todo Nothing "test2" False)
+    let todo1 = (Db.Todo Nothing "test1" False [])
+    let todo2 = (Db.Todo Nothing "test2" False [])
     todo1' <- Db.saveTodo c defaultUser todo1
     todo1' @?= todo1 { Db.todoId = Just 1 }
     todos <- Db.listTodos c defaultUser
@@ -38,7 +38,7 @@ testUpdateTodo = testCase "update todo" $ do
   withNewDb $ \c -> do
     todos <- Db.listTodos c defaultUser
     [] @=? todos
-    let todo = (Db.Todo Nothing "test1" False)
+    let todo = (Db.Todo Nothing "test1" False [])
     todo' <- Db.saveTodo c defaultUser todo
     todo' @?= todo { Db.todoId = Just 1 }
     updated <- Db.saveTodo c defaultUser (todo' { Db.todoText = "updated text" })
@@ -46,6 +46,55 @@ testUpdateTodo = testCase "update todo" $ do
     Just 1 @=? Db.todoId updated
     todos <- Db.listTodos c defaultUser
     [updated] @=? todos
+
+testNewTag :: Test
+testNewTag = testCase "new tag" $ do
+  withNewDb $ \c -> do
+    let todo = (Db.Todo Nothing "test1" False [])
+    todo' <- Db.saveTodo c defaultUser todo
+    tag <- Db.newTag c "foo"
+    Db.Tag 1 "foo" @=? tag
+    t <- Db.addTag c todo' tag
+    tag2 <- Db.newTag c "bar"
+    [tag] @=? Db.todoTags t
+    t <- Db.addTag c todo' tag2
+    [tag, tag2] @=? Db.todoTags t
+
+testRemoveTag :: Test
+testRemoveTag = testCase "remove tag" $ do
+  withNewDb $ \c -> do
+    let t = (Db.Todo Nothing "test1" False [])
+    todo <- Db.saveTodo c defaultUser t
+    tag <- Db.newTag c "foo"
+    Db.Tag 1 "foo" @=? tag
+    t <- Db.addTag c todo tag
+    tag2 <- Db.newTag c "bar"
+    [tag] @=? Db.todoTags t
+    t <- Db.addTag c todo tag2
+    [t'] <- Db.listTodos c defaultUser
+    [tag, tag2] @=? Db.todoTags t
+    [tag, tag2] @=? Db.todoTags t'
+    t <- Db.removeTag c todo tag
+    [t'] <- Db.listTodos c defaultUser
+    [tag2] @=? Db.todoTags t
+    [tag2] @=? Db.todoTags t'
+    t <- Db.removeTag c todo tag2
+    [t'] <- Db.listTodos c defaultUser
+    [] @=? Db.todoTags t
+    [] @=? Db.todoTags t'
+
+testNewTagDupes :: Test
+testNewTagDupes = testCase "duplicate tags" $ do
+  withNewDb $ \c -> do
+    let todo = (Db.Todo Nothing "test1" False [])
+    todo' <- Db.saveTodo c defaultUser todo
+    tag <- Db.newTag c "foo"
+    Db.Tag 1 "foo" @=? tag
+    t <- Db.addTag c todo' tag
+    [tag] @=? Db.todoTags t
+    -- Second addTag shouldn't lead to a todo having the same twice
+    t <- Db.addTag c todo' tag
+    [tag] @=? Db.todoTags t
 
 main :: IO ()
 main =
@@ -56,5 +105,10 @@ main =
       [ mutuallyExclusive $ testGroup "todo tests"
         [ testSaveTodo
         , testUpdateTodo
+        ]
+      , mutuallyExclusive $ testGroup "tag tests"
+        [ testNewTag
+        , testNewTagDupes
+        , testRemoveTag
         ]
       ]
