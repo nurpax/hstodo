@@ -16,7 +16,7 @@ Flag development
 
 Executable hstodo
   hs-source-dirs: src
-  main-is:        Main.hs
+  main-is:        Site/Main.hs
 
   Build-depends:
     base >= 4 && < 5,

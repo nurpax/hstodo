@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Main where
+module Site.Main where
 
 ------------------------------------------------------------------------------
 import           Control.Exception (SomeException, try)
@@ -11,7 +11,8 @@ import           Snap.Snaplet
 import           Snap.Snaplet.Config
 import           Snap.Core
 import           System.IO
-import           Site
+
+import           Site.Site
 
 #ifdef DEVELOPMENT
 import           Snap.Loader.Dynamic

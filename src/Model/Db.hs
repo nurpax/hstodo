@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
-module Db (
+module Model.Db (
     User(..)
   , Todo(..)
   , createTables

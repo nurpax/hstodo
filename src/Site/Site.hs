@@ -4,7 +4,7 @@
 -- | This module is where all the routes and handlers are defined for your
 -- site. The 'app' function is the initializer that combines everything
 -- together and is exported by this module.
-module Site
+module Site.Site
   ( app
   ) where
 
@@ -32,9 +32,10 @@ import           Snap.Extras.JSON
 import           Heist()
 import qualified Heist.Interpreted as I
 ------------------------------------------------------------------------------
-import           Application
-import qualified Db
-import           Util
+import qualified Model.Db as Db
+
+import           Site.Application
+import           Site.Util
 
 type H = Handler App (AuthManager App)
 
