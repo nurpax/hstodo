@@ -25,7 +25,7 @@ instance FromRow Tag where
   fromRow = Tag <$> field <*> field
 
 instance FromRow Todo where
-  fromRow = Todo <$> (fmap (Just . TodoId) field) <*> field <*> field <*> pure []
+  fromRow = Todo <$> fmap (Just . TodoId) field <*> field <*> field <*> pure []
 
 tableExists :: Connection -> String -> IO Bool
 tableExists conn tblName = do
@@ -99,7 +99,7 @@ newTag conn user@(User uid _) t = do
     execute conn "INSERT INTO tags (user_id, tag) VALUES (?, ?)" (uid, t)
     rowId <- lastInsertRowId conn
     return $ Tag rowId t
-   else do
+   else
     tagByName conn user t
 
 
@@ -110,7 +110,7 @@ listTodoTags conn (TodoId todo) =
        T.concat [ "SELECT tags.id,tags.tag FROM tags, todo_tag_map "
                 , "WHERE todo_tag_map.todo_id = ? AND todo_tag_map.tag_id = tags.id"
                 ])
-    (Only (todo))
+    (Only todo)
 
 -- | Retrieve a user's list of comments
 listTodos' :: Connection -> User -> Maybe TodoId -> IO [Todo]
@@ -171,5 +171,5 @@ removeTag conn todo@(TodoId todoId_) tag = do
 
 -- | Retrieve a user's list of tags
 listTags :: Connection -> User -> IO [Tag]
-listTags conn (User uid _) = do
+listTags conn (User uid _) =
   query conn "SELECT id,tag FROM tags WHERE user_id = ?" (Only uid)

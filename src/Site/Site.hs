@@ -78,8 +78,8 @@ handleNewUser =
       where
         errs = [("newUserError", I.textSplice . T.pack . show $ c) | c <- maybeToList err]
 
-    login user = logRunEitherT $ do
-      lift $ forceLogin user >> (return $ redirect "/")
+    login user = logRunEitherT $
+      lift $ forceLogin user >> redirect "/"
 
 -- | Run actions with a logged in user or go back to the login screen
 withLoggedInUser :: (M.User -> H ()) -> H ()
@@ -126,11 +126,11 @@ handleTags =
 
     saveTag user = do
       newTag <- getJSON
-      either (\v -> liftIO $ print v) persist newTag
+      either (liftIO . print) persist newTag
         where
-          persist tag = do
+          persist tag =
             -- TODO this will never update the tag?? is that ok?
-            (withDb $ \conn -> M.newTag conn user tag) >>= writeJSON
+            withDb (\conn -> M.newTag conn user tag) >>= writeJSON
 
 
 data AddTagParams =
@@ -151,7 +151,7 @@ handleTodosAddTag =
   where
     todoAddTag user = do
       req <- getJSON
-      either (\v -> liftIO $ print v) addTag req
+      either (liftIO . print) addTag req
       where
         addTag :: AddTagParams -> H ()
         addTag AddTagParams{..} = do
@@ -195,7 +195,7 @@ app = makeSnaplet "app" "An snaplet example application." Nothing $ do
     -- Grab the DB connection pool from the sqlite snaplet and call
     -- into the Model to create all the DB tables if necessary.
     let conn = sqliteConn $ d ^# snapletValue
-    liftIO $ withMVar conn $ M.createTables
+    liftIO $ withMVar conn M.createTables
 
     addAuthSplices auth
     return $ App h s d a
