@@ -1,9 +1,17 @@
 'use strict';
 
-function TodoCtrl($scope, Todo, Tag) {
+function TodoItemCtrl($scope, Todo) {
+    $scope.addTag = function() {
+        var tag = { todoId:$scope.todo.id, tag:$scope.tagText };
+
+        $scope.todo    = Todo.addTag(tag);
+        $scope.tagText = '';
+    };
+}
+
+function TodoCtrl($scope, Todo) {
 
     $scope.todos = Todo.query();
-    $scope.tags  = Tag.query();
 
     $scope.addTodo = function() {
         var newTodo = { text:$scope.todoText, done:false };
@@ -25,7 +33,7 @@ function TodoCtrl($scope, Todo, Tag) {
         });
         return count;
     };
-    
+
     $scope.archive = function() {
         var oldTodos = $scope.todos;
         $scope.todos = [];
@@ -33,14 +41,6 @@ function TodoCtrl($scope, Todo, Tag) {
             if (!todo.done)
                 $scope.todos.push(todo);
         });
-    };
-
-
-    $scope.addTag = function() {
-        var tag = { tag:$scope.tagText };
-        Tag.save(tag);
-        $scope.tags = Tag.query();
-        $scope.tagText = '';
     };
 }
 

@@ -2,6 +2,7 @@
 
 import           Control.Exception hiding (Handler)
 import           Control.Monad
+import           Data.Maybe (fromJust)
 import           Prelude hiding (catch)
 import           Test.Framework
 import           Test.Framework.Providers.HUnit
@@ -55,35 +56,37 @@ testNewTag = testCase "new tag" $ do
   withNewDb $ \c -> do
     let todo = (M.Todo Nothing "test1" False [])
     todo' <- M.saveTodo c defaultUser todo
+    let todoId_ = M.TodoId . fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
-    M.Tag (Just 1) "foo" @=? tag
-    t <- M.addTag c todo' tag
+    M.Tag 1 "foo" @=? tag
+    t <- M.addTag c todoId_ tag
     tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? M.todoTags t
-    t <- M.addTag c todo' tag2
-    [tag, tag2] @=? M.todoTags t
+    [tag] @=? t
+    t <- M.addTag c todoId_ tag2
+    [tag, tag2] @=? t
 
 testRemoveTag :: Test
 testRemoveTag = testCase "remove tag" $ do
   withNewDb $ \c -> do
     let t = (M.Todo Nothing "test1" False [])
     todo <- M.saveTodo c defaultUser t
+    let todoId_ = M.TodoId . fromJust . M.todoId $ todo
     tag <- M.newTag c defaultUser "foo"
-    M.Tag (Just 1) "foo" @=? tag
-    t <- M.addTag c todo tag
+    M.Tag 1 "foo" @=? tag
+    t <- M.addTag c todoId_ tag
     tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? M.todoTags t
-    t <- M.addTag c todo tag2
+    [tag] @=? t
+    newTags <- M.addTag c todoId_ tag2
     [t'] <- M.listTodos c defaultUser
-    [tag, tag2] @=? M.todoTags t
+    [tag, tag2] @=? newTags
     [tag, tag2] @=? M.todoTags t'
-    t <- M.removeTag c todo tag
+    newTags <- M.removeTag c todoId_ tag
     [t'] <- M.listTodos c defaultUser
-    [tag2] @=? M.todoTags t
+    [tag2] @=? newTags
     [tag2] @=? M.todoTags t'
-    t <- M.removeTag c todo tag2
+    t <- M.removeTag c todoId_ tag2
     [t'] <- M.listTodos c defaultUser
-    [] @=? M.todoTags t
+    [] @=? t
     [] @=? M.todoTags t'
 
 testNewTagDupes :: Test
@@ -91,13 +94,14 @@ testNewTagDupes = testCase "duplicate tags" $ do
   withNewDb $ \c -> do
     let todo = (M.Todo Nothing "test1" False [])
     todo' <- M.saveTodo c defaultUser todo
+    let todoId_ = M.TodoId . fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
-    M.Tag (Just 1) "foo" @=? tag
-    t <- M.addTag c todo' tag
-    [tag] @=? M.todoTags t
+    M.Tag 1 "foo" @=? tag
+    t <- M.addTag c todoId_ tag
+    [tag] @=? t
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTag c todo' tag
-    [tag] @=? M.todoTags t
+    t <- M.addTag c todoId_ tag
+    [tag] @=? t
 
 testNewTagDupesMultiUser :: Test
 testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
@@ -105,17 +109,19 @@ testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
     let t = (M.Todo Nothing "test1" False [])
     todoUsr1 <- M.saveTodo c defaultUser  t
     todoUsr2 <- M.saveTodo c defaultUser2 t
+    let todoId1 = M.TodoId . fromJust . M.todoId $ todoUsr1
+        todoId2 = M.TodoId . fromJust . M.todoId $ todoUsr2
     tagUsr1 <- M.newTag c defaultUser "foo"
     tagUsr2 <- M.newTag c defaultUser2 "foo"
-    M.Tag (Just 1) "foo" @=? tagUsr1
-    M.Tag (Just 2) "foo" @=? tagUsr2
-    t <- M.addTag c todoUsr1 tagUsr1
-    [tagUsr1] @=? M.todoTags t
+    M.Tag 1 "foo" @=? tagUsr1
+    M.Tag 2 "foo" @=? tagUsr2
+    t <- M.addTag c todoId1 tagUsr1
+    [tagUsr1] @=? t
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTag c todoUsr1 tagUsr1
-    [tagUsr1] @=? M.todoTags t
-    t <- M.addTag c todoUsr2 tagUsr2
-    [tagUsr2] @=? M.todoTags t
+    t <- M.addTag c todoId1 tagUsr1
+    [tagUsr1] @=? t
+    t <- M.addTag c todoId2 tagUsr2
+    [tagUsr2] @=? t
 
 main :: IO ()
 main =

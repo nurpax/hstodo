@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 ------------------------------------------------------------------------------
@@ -11,11 +12,14 @@ module Site.Site
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Concurrent (withMVar)
+import           Control.Monad (mzero)
 import           Control.Monad.Trans (liftIO, lift)
 import           Control.Monad.Trans.Either
 import           Control.Error.Safe (tryJust)
 import           Control.Lens ((^#))
+import           Data.Aeson
 import           Data.ByteString (ByteString)
+import           Data.Int (Int64)
 import           Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
@@ -128,6 +132,35 @@ handleTags =
             -- TODO this will never update the tag?? is that ok?
             (withDb $ \conn -> M.newTag conn user tag) >>= writeJSON
 
+
+data AddTagParams =
+  AddTagParams
+  { atpTodoId :: Int64
+  , atpTag    :: T.Text
+  }
+
+instance FromJSON AddTagParams where
+  parseJSON (Object v) =
+    AddTagParams <$> v .: "todoId"
+                 <*> v .: "tag"
+  parseJSON _ = mzero
+
+handleTodosAddTag :: H ()
+handleTodosAddTag =
+  method POST (withLoggedInUser todoAddTag)
+  where
+    todoAddTag user = do
+      req <- getJSON
+      either (\v -> liftIO $ print v) addTag req
+      where
+        addTag :: AddTagParams -> H ()
+        addTag AddTagParams{..} = do
+          Just tag <- withDb $ \c -> do
+            newTag <- M.newTag c user atpTag
+            M.addTag c (M.TodoId atpTodoId) newTag
+            M.queryTodo c user (M.TodoId atpTodoId)
+          writeJSON tag
+
 -- | Render main page
 mainPage :: H ()
 mainPage = withLoggedInUser (const $ serveDirectory "static")
@@ -137,8 +170,9 @@ routes :: [(ByteString, Handler App App ())]
 routes = [ ("/login",        with auth handleLoginSubmit)
          , ("/logout",       with auth handleLogout)
          , ("/new_user",     with auth handleNewUser)
+         , ("/api/todo/tag", with auth handleTodosAddTag)
          , ("/api/todo",     with auth handleTodos)
-         , ("/api/tag",      with auth handleTags)
+         , ("/api/tag",      with auth handleTags) -- TODO sort of not needed
          , ("/",             with auth mainPage)
          , ("/static",       serveDirectory "static")
          ]

@@ -7,16 +7,22 @@ module Model.Db (
   , addTag
   , removeTag
   , listTags
+  , queryTodo
   , saveTodo
   , listTodos
+  , TodoId(..)
   ) where
 
 import           Control.Applicative
 import           Control.Monad
+import           Data.Int (Int64)
+import           Data.Maybe (fromJust, listToMaybe)
 import qualified Data.Text as T
 import           Database.SQLite.Simple
 
 import           Model.Types
+
+newtype TodoId = TodoId Int64
 
 instance FromRow Tag where
   fromRow = Tag <$> field <*> field
@@ -74,11 +80,11 @@ tagNameExists conn (User uid _) tag = do
   return $ nRows /= 0
 
 -- | Is a Tag already associated with a given Todo item
-hasTag :: Connection -> Todo -> Tag -> IO Bool
-hasTag conn todo tag = do
+hasTag :: Connection -> TodoId -> Tag -> IO Bool
+hasTag conn (TodoId todoId_) tag = do
   [Only nRows] <-
     query conn "SELECT count(*) FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
-      (todoId todo, tagId tag) :: IO [Only Int]
+      (todoId_, tagId tag) :: IO [Only Int]
   return $ nRows /= 0
 
 -- | Look for a Tag by its name
@@ -89,39 +95,53 @@ tagByName conn (User uid _) tag = do
   return t
 
 -- | Create a new tag
-newTag :: Connection -> User -> Tag -> IO Tag
+newTag :: Connection -> User -> T.Text -> IO Tag
 newTag conn user@(User uid _) t = do
-  tagExists <- tagNameExists conn user (tagText t)
+  tagExists <- tagNameExists conn user t
   if not tagExists then do
-    execute conn "INSERT INTO tags (user_id, tag) VALUES (?, ?)" (uid, tagText t)
+    execute conn "INSERT INTO tags (user_id, tag) VALUES (?, ?)" (uid, t)
     rowId <- lastInsertRowId conn
-    return $ t { tagId = Just rowId }
+    return $ Tag rowId t
    else do
-    tagByName conn user (tagText t)
+    tagByName conn user t
 
 
-listTodoTags :: Connection -> Todo -> IO [Tag]
-listTodoTags conn todo =
+listTodoTags :: Connection -> TodoId -> IO [Tag]
+listTodoTags conn (TodoId todo) =
   query conn
     (Query $
        T.concat [ "SELECT tags.id,tags.tag FROM tags, todo_tag_map "
                 , "WHERE todo_tag_map.todo_id = ? AND todo_tag_map.tag_id = tags.id"
                 ])
-    (Only (todoId todo))
+    (Only (todo))
 
 -- | Retrieve a user's list of comments
-listTodos :: Connection -> User -> IO [Todo]
-listTodos conn (User uid _) = do
-  todos <- query conn "SELECT id,text,done FROM todos WHERE user_id = ?" (Only uid)
+listTodos' :: Connection -> User -> Maybe TodoId -> IO [Todo]
+listTodos' conn (User uid _) todoId_  = do
+  todos <-
+    case todoId_ of
+      Nothing ->
+        query conn "SELECT id,text,done FROM todos WHERE user_id = ?" (Only uid)
+      Just (TodoId tid) ->
+        query conn "SELECT id,text,done FROM todos WHERE (user_id = ? AND id = ?)" (uid, tid)
   mapM queryTags todos
   where
     queryTags todo = do
-      tags <- listTodoTags conn todo
+      tags <- listTodoTags conn (TodoId . fromJust . todoId $ todo)
       return $ todo { todoTags = tags }
+
+listTodos :: Connection -> User -> IO [Todo]
+listTodos c u = listTodos' c u Nothing
+
+queryTodo :: Connection -> User -> TodoId -> IO (Maybe Todo)
+queryTodo conn user todoId_ = do
+  todos <- listTodos' conn user (Just todoId_)
+  return . listToMaybe $ todos
+
 
 -- | Save or update a todo
 saveTodo :: Connection -> User -> Todo -> IO Todo
-saveTodo conn (User uid _) t =
+saveTodo conn user@(User uid _) t =
   maybe newTodo updateTodo (todoId t)
   where
     newTodo = do
@@ -133,25 +153,23 @@ saveTodo conn (User uid _) t =
     updateTodo tid = do
       execute conn "UPDATE todos SET text = ?, done = ? WHERE (user_id = ? AND id = ?)"
         (todoText t, todoDone t, uid, tid)
-      return t
+      fromJust <$> queryTodo conn user (TodoId tid)
 
 -- | Assign a Tag to a given Todo
-addTag :: Connection -> Todo -> Tag -> IO Todo
-addTag conn todo tag = do
+addTag :: Connection -> TodoId -> Tag -> IO [Tag]
+addTag conn todo@(TodoId todoId_) tag = do
   tagAlreadySet <- hasTag conn todo tag
   unless tagAlreadySet $
     execute conn "INSERT INTO todo_tag_map (todo_id, tag_id) VALUES (?,?)"
-      (todoId todo, tagId tag)
-  newTags <- listTodoTags conn todo
-  return $ todo { todoTags = newTags }
+      (todoId_, tagId tag)
+  listTodoTags conn todo
 
 -- | Remove a Tag from a given Todo
-removeTag :: Connection -> Todo -> Tag -> IO Todo
-removeTag conn todo tag = do
+removeTag :: Connection -> TodoId -> Tag -> IO [Tag]
+removeTag conn todo@(TodoId todoId_) tag = do
   execute conn "DELETE FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
-    (todoId todo, tagId tag)
-  newTags <- listTodoTags conn todo
-  return $ todo { todoTags = newTags }
+    (todoId_, tagId tag)
+  listTodoTags conn todo
 
 
 -- | Retrieve a user's list of tags
