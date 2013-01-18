@@ -4,6 +4,7 @@ module Model.Types (
     User(..)
   , Tag(..)
   , Todo(..)
+  , TodoId(..)
   ) where
 
 import           Control.Applicative
@@ -21,9 +22,11 @@ data Tag =
   , tagText :: T.Text
   } deriving (Show, Eq)
 
+newtype TodoId = TodoId { unTodoId :: Int64 } deriving (Show, Eq)
+
 data Todo =
   Todo
-  { todoId   :: Maybe Int64
+  { todoId   :: Maybe TodoId
   , todoText :: T.Text
   , todoDone :: Bool
   , todoTags :: [Tag]
@@ -43,7 +46,7 @@ instance ToJSON Tag where
 
 instance FromJSON Todo where
   parseJSON (Object v) =
-    Todo <$> optional (v .: "id")
+    Todo <$> optional (TodoId <$> (v .: "id"))
          <*> v .: "text"
          <*> v .: "done"
          <*> (maybeToList <$> optional (v .: "tags"))
@@ -51,7 +54,7 @@ instance FromJSON Todo where
 
 instance ToJSON Todo where
   toJSON (Todo i text done tags) =
-    object [ "id"   .= fromJust i
+    object [ "id"   .= (unTodoId . fromJust $ i)
            , "text" .= text
            , "done" .= done
            , "tags" .= tags

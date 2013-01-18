@@ -2,6 +2,7 @@
 
 import           Control.Exception hiding (Handler)
 import           Control.Monad
+import           Data.Int (Int64)
 import           Data.Maybe (fromJust)
 import           Prelude hiding (catch)
 import           Test.Framework
@@ -22,6 +23,9 @@ withNewDb :: (S.Connection -> IO a) -> IO a
 withNewDb action = do
   bracket (S.open ":memory:") S.close (\c -> M.createTables c >> action c)
 
+mkTodoId :: Integral n => n -> Maybe M.TodoId
+mkTodoId = Just . M.TodoId . fromIntegral
+
 testSaveTodo :: Test
 testSaveTodo = testCase "save todo" $ do
   withNewDb $ \c -> do
@@ -30,7 +34,7 @@ testSaveTodo = testCase "save todo" $ do
     let todo1 = (M.Todo Nothing "test1" False [])
     let todo2 = (M.Todo Nothing "test2" False [])
     todo1' <- M.saveTodo c defaultUser todo1
-    todo1' @?= todo1 { M.todoId = Just 1 }
+    todo1' @?= todo1 { M.todoId = mkTodoId 1 }
     todos <- M.listTodos c defaultUser
     [todo1'] @=? todos
     todo2' <- M.saveTodo c defaultUser todo2
@@ -44,10 +48,10 @@ testUpdateTodo = testCase "update todo" $ do
     [] @=? todos
     let todo = (M.Todo Nothing "test1" False [])
     todo' <- M.saveTodo c defaultUser todo
-    todo' @?= todo { M.todoId = Just 1 }
+    todo' @?= todo { M.todoId = mkTodoId 1 }
     updated <- M.saveTodo c defaultUser (todo' { M.todoText = "updated text" })
     "updated text" @=? M.todoText updated
-    Just 1 @=? M.todoId updated
+    mkTodoId 1 @=? M.todoId updated
     todos <- M.listTodos c defaultUser
     [updated] @=? todos
 
@@ -56,7 +60,7 @@ testNewTag = testCase "new tag" $ do
   withNewDb $ \c -> do
     let todo = (M.Todo Nothing "test1" False [])
     todo' <- M.saveTodo c defaultUser todo
-    let todoId_ = M.TodoId . fromJust . M.todoId $ todo'
+    let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
     t <- M.addTag c todoId_ tag
@@ -70,7 +74,7 @@ testRemoveTag = testCase "remove tag" $ do
   withNewDb $ \c -> do
     let t = (M.Todo Nothing "test1" False [])
     todo <- M.saveTodo c defaultUser t
-    let todoId_ = M.TodoId . fromJust . M.todoId $ todo
+    let todoId_ = fromJust . M.todoId $ todo
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
     t <- M.addTag c todoId_ tag
@@ -94,7 +98,7 @@ testNewTagDupes = testCase "duplicate tags" $ do
   withNewDb $ \c -> do
     let todo = (M.Todo Nothing "test1" False [])
     todo' <- M.saveTodo c defaultUser todo
-    let todoId_ = M.TodoId . fromJust . M.todoId $ todo'
+    let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
     t <- M.addTag c todoId_ tag
@@ -109,8 +113,8 @@ testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
     let t = (M.Todo Nothing "test1" False [])
     todoUsr1 <- M.saveTodo c defaultUser  t
     todoUsr2 <- M.saveTodo c defaultUser2 t
-    let todoId1 = M.TodoId . fromJust . M.todoId $ todoUsr1
-        todoId2 = M.TodoId . fromJust . M.todoId $ todoUsr2
+    let todoId1 = fromJust . M.todoId $ todoUsr1
+        todoId2 = fromJust . M.todoId $ todoUsr2
     tagUsr1 <- M.newTag c defaultUser "foo"
     tagUsr2 <- M.newTag c defaultUser2 "foo"
     M.Tag 1 "foo" @=? tagUsr1

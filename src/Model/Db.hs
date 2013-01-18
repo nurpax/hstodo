@@ -15,20 +15,17 @@ module Model.Db (
 
 import           Control.Applicative
 import           Control.Monad
-import           Data.Int (Int64)
 import           Data.Maybe (fromJust, listToMaybe)
 import qualified Data.Text as T
 import           Database.SQLite.Simple
 
 import           Model.Types
 
-newtype TodoId = TodoId Int64
-
 instance FromRow Tag where
   fromRow = Tag <$> field <*> field
 
 instance FromRow Todo where
-  fromRow = Todo <$> field <*> field <*> field <*> pure []
+  fromRow = Todo <$> (fmap (Just . TodoId) field) <*> field <*> field <*> pure []
 
 tableExists :: Connection -> String -> IO Bool
 tableExists conn tblName = do
@@ -127,7 +124,7 @@ listTodos' conn (User uid _) todoId_  = do
   mapM queryTags todos
   where
     queryTags todo = do
-      tags <- listTodoTags conn (TodoId . fromJust . todoId $ todo)
+      tags <- listTodoTags conn (fromJust . todoId $ todo)
       return $ todo { todoTags = tags }
 
 listTodos :: Connection -> User -> IO [Todo]
@@ -148,12 +145,12 @@ saveTodo conn user@(User uid _) t =
       execute conn "INSERT INTO todos (user_id,text,done) VALUES (?,?,?)"
         (uid, todoText t, todoDone t)
       rowId <- lastInsertRowId conn
-      return $ t { todoId = Just rowId }
+      return $ t { todoId = Just . TodoId $ rowId }
 
     updateTodo tid = do
       execute conn "UPDATE todos SET text = ?, done = ? WHERE (user_id = ? AND id = ?)"
-        (todoText t, todoDone t, uid, tid)
-      fromJust <$> queryTodo conn user (TodoId tid)
+        (todoText t, todoDone t, uid, unTodoId tid)
+      fromJust <$> queryTodo conn user tid
 
 -- | Assign a Tag to a given Todo
 addTag :: Connection -> TodoId -> Tag -> IO [Tag]
