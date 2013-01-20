@@ -1,16 +1,18 @@
 'use strict';
 
-function TodoItemCtrl($scope, Todo) {
+function TodoItemCtrl($scope, Todo, Tag) {
     $scope.addTag = function() {
         var tag = { todoId:$scope.todo.id, tag:$scope.tagText };
 
         $scope.todo    = Todo.addTag(tag);
         $scope.tagText = '';
+        // TODO is there some way to do stuff like below with binding?
+        //$scope.$parent.tags = Tag.query();
     };
 }
 
-function TodoCtrl($scope, Todo) {
-
+function TodoCtrl($scope, Todo, Tag) {
+    $scope.tags = Tag.query();
     $scope.todos = Todo.query();
 
     $scope.addTodo = function() {
@@ -42,7 +44,30 @@ function TodoCtrl($scope, Todo) {
                 $scope.todos.push(todo);
         });
     };
+
+    $scope.toggleTagFilter = function (tag) {
+        tag.enabled = !tag.enabled;
+    };
+
+    // Filter todos based on selected tags
+    $scope.doFilterByTag = function(todo) {
+        var enabledTags = 0;
+        var foundTags   = 0;
+        angular.forEach($scope.tags, function (tag) {
+            if (tag.enabled)
+            {
+                enabledTags++;
+                angular.forEach(todo.tags, function (todoTag) {
+                    if (todoTag.id == tag.id)
+                        foundTags++;
+                });
+            }
+        });
+        return enabledTags == foundTags;
+    };
+
 }
+
 
 angular.module('todoApp', ['todoServices']).
     config(['$routeProvider', function($routeProvider) {

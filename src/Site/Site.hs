@@ -172,7 +172,7 @@ routes = [ ("/login",        with auth handleLoginSubmit)
          , ("/new_user",     with auth handleNewUser)
          , ("/api/todo/tag", with auth handleTodosAddTag)
          , ("/api/todo",     with auth handleTodos)
-         , ("/api/tag",      with auth handleTags) -- TODO sort of not needed
+         , ("/api/tag",      with auth handleTags)
          , ("/",             with auth mainPage)
          , ("/static",       serveDirectory "static")
          ]

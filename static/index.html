@@ -9,35 +9,48 @@
   </head>
   <body>
     <h2>Snap + AngularJS Todo</h2>
+
     <div ng-controller="TodoCtrl">
-      <span>{{remaining()}} of {{todos.length}} remaining</span>
-      [ <a href="" ng-click="archive()">archive</a> ]
-      <ul class="unstyled">
-        <li ng-repeat="todo in todos">
-          <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-          <span ng-click="open(todo)" class="done-{{todo.done}}">{{todo.text}}</span>
+      <div class="todo-nav">
+        <span>{{remaining()}} of {{todos.length}} remaining</span>
+        [ <a href="" ng-click="archive()">archive</a> ]
+        <ul class="unstyled">
+          <li ng-repeat="todo in todos | filter:doFilterByTag">
+            <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
+            <span class="done-{{todo.done}}">{{todo.text}}</span>
 
-          <div ng-controller="TodoItemCtrl">
-            <form ng-submit="addTag()">
-              <input type="text" ng-model="tagText"  size="20"
-                     placeholder="type tag here">
-              <input class="btn-primary" type="submit" value="add">
-            </form>
+            <div ng-controller="TodoItemCtrl">
+              <form ng-submit="addTag()">
+                <input type="text" ng-model="tagText"  size="20"
+                       placeholder="type tag here">
+                <input class="btn-primary" type="submit" value="add">
+              </form>
 
-            <div class="tags">
-              <label class="tag" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</label>
-            <div class="tags">
+              <div class="tags">
+                <label class="tag" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</label>
+              </div>
 
-           </div>
-        </li>
-      </ul>
+            </div>
+          </li>
+        </ul>
 
-      <form ng-submit="addTodo()">
-        <input type="text" ng-model="todoText"  size="30"
-               placeholder="add new todo here">
-        <input class="btn-primary" type="submit" value="add">
-      </form>
+        <form ng-submit="addTodo()">
+          <input type="text" ng-model="todoText"  size="30"
+                 placeholder="add new todo here">
+          <input class="btn-primary" type="submit" value="add">
+        </form>
 
+      </div>
+
+      <div class="tag-nav">
+        <h2>Tags</h2>
+        <ul>
+          <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">
+            <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>
+          </li>
+        </ul>
+      </div>
     </div>
+
   </body>
 </html>

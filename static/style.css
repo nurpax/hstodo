@@ -25,13 +25,22 @@ img {
    font-size: 60%;
 }
 
-
 .done-true {
   text-decoration: line-through;
   color: grey;
 }
 
-div .tags {
+div.todo-nav {
+  float: left;
+  width:80%;
+}
+
+div.tag-nav {
+  float: right;
+  width:20%;
+}
+
+div.tags {
   padding-top:1px;
   padding-bottom:1px;
 }
@@ -45,4 +54,17 @@ div.tags label {
 
   background-color:#abc;
   border-radius: 3px;
+}
+
+/* TODO re-use CSS from div.tags */
+.tag-filter {
+  border-radius: 3px;
+  background-color:#fff;
+}
+
+.tag-filter.false {
+}
+
+.tag-filter.true {
+  background-color:#abc;
 }
