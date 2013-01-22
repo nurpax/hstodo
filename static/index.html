@@ -51,17 +51,17 @@
     <div role="main">
       <div class="container">
         <section id="todos">
-        <h1>Snap + AngularJS Todo</h1>
+          <h1>Thask manager</h1>
         </section>
 
-        <div ng-controller="TodoCtrl">
-          <div class="todo-nav">
+        <div class="row" ng-controller="TodoCtrl">
+          <div class="span8">
             <span>{{remaining()}} of {{todos.length}} remaining</span>
             [ <a href="" ng-click="archive()">archive</a> ]
 
             <form ng-submit="addTodo()">
-              <div class="form-horizontal">
-                <input type="text" ng-model="todoText"  size="30"
+              <div class="form-inline">
+                <input class="input-xxlarge" type="text" ng-model="todoText"  size="30"
                        placeholder="add new todo here">
                 <button class="btn-primary" type="submit">add</button>
               </div>
@@ -70,15 +70,19 @@
 
             <ul class="unstyled">
               <li ng-repeat="todo in todos | filter:doFilterByTag">
-                <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-                <span class="done-{{todo.done}}">{{todo.text}}</span>
+
+                <label class="checkbox done-{{todo.done}}">
+                  <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
+                  {{todo.text}}
+                </label>
+
 
                 <div ng-controller="TodoItemCtrl">
                   <form ng-submit="addTag()">
-                    <div class="form-horizontal">
-                      <input type="text" ng-model="tagText" size="20"
-                             placeholder="type tag here" >
-                      <button class="btn" type="submit">add</button>
+                    <div class="form-inline">
+                      <input class="input-mini" type="text" ng-model="tagText" size="20"
+                             placeholder="add tag.." >
+                      <button class="btn btn-mini" type="submit">add</button>
                     </div>
                   </form>
 
@@ -92,7 +96,7 @@
 
           </div>
 
-          <div class="tag-nav">
+          <div class="span4">
             <h2>Tags</h2>
             <ul>
               <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">

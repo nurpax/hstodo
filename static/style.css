@@ -22,16 +22,6 @@ img {
   color: grey;
 }
 
-div.todo-nav {
-  float: left;
-  width:80%;
-}
-
-div.tag-nav {
-  float: right;
-  width:20%;
-}
-
 div.tags {
   padding-top:1px;
   padding-bottom:1px;
