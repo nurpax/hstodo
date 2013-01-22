@@ -1,55 +1,113 @@
 <!doctype html>
 <html ng-app="todoApp">
   <head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
+    <script src="bootstrap/js/bootstrap.min.js"></script>
+
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular.min.js"></script>
+
+    <!-- angular-ui -->
+    <script src="angular-ui-0.3.2/common/module.js"></script>
+    <script src="angular-ui-0.3.2/modules/directives/date/date.js"></script>
+
     <script src="todo.js"></script>
     <script src="services.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.0.3/angular-resource.min.js"></script>
+
+    <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css">
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css" >
+    <link rel="stylesheet" href="angular-ui-0.3.2/build/angular-ui.min.css" >
+
     <link rel="stylesheet" href="style.css">
   </head>
-  <body>
-    <h2>Snap + AngularJS Todo</h2>
+  <body data-twttr-rendered="true">
 
-    <div ng-controller="TodoCtrl">
-      <div class="todo-nav">
-        <span>{{remaining()}} of {{todos.length}} remaining</span>
-        [ <a href="" ng-click="archive()">archive</a> ]
-        <ul class="unstyled">
-          <li ng-repeat="todo in todos | filter:doFilterByTag">
-            <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-            <span class="done-{{todo.done}}">{{todo.text}}</span>
+    <header class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
 
-            <div ng-controller="TodoItemCtrl">
-              <form ng-submit="addTag()">
-                <input type="text" ng-model="tagText"  size="20"
-                       placeholder="type tag here">
-                <input class="btn-primary" type="submit" value="add">
-              </form>
+        <div class="container">
+	  <ul class="nav">
+	    <li class="active">
+	      <a scrollto href="#top">Home</a>
+	    </li>
+          </ul>
 
-              <div class="tags">
-                <label class="tag" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</label>
+	  <ul class="nav">
+	    <li class="">
+	      <a scrollto href="#top2">About</a>
+	    </li>
+          </ul>
+
+	  <ul class="pull-right nav">
+	    <li class="">
+	      <a scrollto href="#top3">Settings</a>
+	    </li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <div role="main">
+      <div class="container">
+        <section id="todos">
+        <h1>Snap + AngularJS Todo</h1>
+        </section>
+
+        <div ng-controller="TodoCtrl">
+          <div class="todo-nav">
+            <span>{{remaining()}} of {{todos.length}} remaining</span>
+            [ <a href="" ng-click="archive()">archive</a> ]
+
+            <form ng-submit="addTodo()">
+              <div class="form-horizontal">
+                <input type="text" ng-model="todoText"  size="30"
+                       placeholder="add new todo here">
+                <button class="btn-primary" type="submit">add</button>
               </div>
+            </form>
 
-            </div>
-          </li>
-        </ul>
 
-        <form ng-submit="addTodo()">
-          <input type="text" ng-model="todoText"  size="30"
-                 placeholder="add new todo here">
-          <input class="btn-primary" type="submit" value="add">
-        </form>
+            <ul class="unstyled">
+              <li ng-repeat="todo in todos | filter:doFilterByTag">
+                <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
+                <span class="done-{{todo.done}}">{{todo.text}}</span>
+
+                <div ng-controller="TodoItemCtrl">
+                  <form ng-submit="addTag()">
+                    <div class="form-horizontal">
+                      <input type="text" ng-model="tagText" size="20"
+                             placeholder="type tag here" >
+                      <button class="btn" type="submit">add</button>
+                    </div>
+                  </form>
+
+                  <div class="tags">
+                    <span class="tag" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</span>
+                  </div>
+                </div>
+
+              </li>
+            </ul>
+
+          </div>
+
+          <div class="tag-nav">
+            <h2>Tags</h2>
+            <ul>
+              <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">
+                <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+	<ng-form name="dateForm">
+	  <p><input name="dateField" value="Click Here for Datepicker" ng-model="date" ui-date></p>
+	</ng-form>
 
       </div>
 
-      <div class="tag-nav">
-        <h2>Tags</h2>
-        <ul>
-          <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">
-            <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>
-          </li>
-        </ul>
-      </div>
     </div>
 
   </body>

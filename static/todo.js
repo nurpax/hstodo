@@ -69,6 +69,6 @@ function TodoCtrl($scope, Todo, Tag) {
 }
 
 
-angular.module('todoApp', ['todoServices']).
+angular.module('todoApp', ['todoServices', 'ui']).
     config(['$routeProvider', function($routeProvider) {
     }]);
