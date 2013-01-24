@@ -12,6 +12,7 @@ module Model.Db (
   , removeTodoTag
   , addTodoTag
     -- * Notes
+  , queryNote
   , saveNote
   , listNotes
   , addNoteTag

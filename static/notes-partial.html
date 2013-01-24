@@ -1,3 +1,14 @@
-<div>
-Notes go here
+<div class="row" ng-controller="NoteListCtrl">
+  <div class="span8">
+
+    <a class="" href="#/notes/new">Create a new Note..</a>
+
+    <h3>Notes</h3>
+    <ul class="unstyled">
+      <li ng-repeat="note in notes">
+        <a href="#/notes/edit/{{note.id}}">{{note.title}}</a>
+      </li>
+    </ul>
+
+  </div>
 </div>

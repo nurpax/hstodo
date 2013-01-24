@@ -22,11 +22,12 @@ import           Data.ByteString (ByteString)
 import           Data.Int (Int64)
 import           Data.Maybe
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
 import           Database.SQLite.Simple as S
 import           Snap.Core
 import           Snap.Snaplet
-import           Snap.Snaplet.Auth
+import           Snap.Snaplet.Auth hiding (save)
 import           Snap.Snaplet.Auth.Backends.SqliteSimple
 import           Snap.Snaplet.Heist
 import           Snap.Snaplet.Session.Backends.CookieSession
@@ -99,20 +100,38 @@ withDb action =
 
 handleTodos :: H ()
 handleTodos =
-  method GET  (withLoggedInUser getTodos) <|>
-  method POST (withLoggedInUser saveTodo)
+  method GET  (withLoggedInUser get) <|>
+  method POST (withLoggedInUser save)
   where
-    getTodos user = do
-      todos <- withDb $ \conn -> M.listTodos conn user
-      writeJSON todos
+    get user = (withDb $ \conn -> M.listTodos conn user) >>= writeJSON
 
-    saveTodo user = do
-      newTodo <- getJSON
-      either (const $ return ()) persist newTodo
+    save user = do
+      getJSON >>= either (const $ return ()) persist
         where
           persist todo = do
-            savedTodo <- withDb $ \conn -> M.saveTodo conn user todo
-            writeJSON savedTodo
+            (withDb $ \conn -> M.saveTodo conn user todo) >>= writeJSON
+
+
+handleNotes :: H ()
+handleNotes =
+  method GET  (withLoggedInUser get) <|>
+  method POST (withLoggedInUser save)
+  where
+    get user = do
+      id_ <- getParam "id"
+      case id_ of
+        Nothing ->
+          (withDb $ \conn -> M.listNotes conn user) >>= writeJSON
+        Just noteId ->
+          logRunEitherT $ do
+            nid <- hoistEither (reader T.decimal (T.decodeUtf8 noteId))
+            return $ (withDb $ \conn -> M.queryNote conn user (M.NoteId nid)) >>= writeJSON
+
+    save user = do
+      getJSON >>= either (const $ return ()) persist
+        where
+          persist todo = do
+            (withDb $ \conn -> M.saveNote conn user todo) >>= writeJSON
 
 -- TODO lot of duplicate code here, find a way to reuse
 handleTags :: H ()
@@ -135,8 +154,8 @@ handleTags =
 
 data AddTagParams =
   AddTagParams
-  { atpTodoId :: Int64
-  , atpTag    :: T.Text
+  { atpObjectId :: Int64
+  , atpTag      :: T.Text
   }
 
 instance FromJSON AddTagParams where
@@ -147,18 +166,32 @@ instance FromJSON AddTagParams where
 
 handleTodosAddTag :: H ()
 handleTodosAddTag =
-  method POST (withLoggedInUser todoAddTag)
+  method POST (withLoggedInUser go)
   where
-    todoAddTag user = do
-      req <- getJSON
-      either (liftIO . print) addTag req
+    go user =
+      getJSON >>= either (liftIO . print) addTag
       where
         addTag :: AddTagParams -> H ()
         addTag AddTagParams{..} = do
           Just tag <- withDb $ \c -> do
             newTag <- M.newTag c user atpTag
-            M.addTodoTag c (M.TodoId atpTodoId) newTag
-            M.queryTodo c user (M.TodoId atpTodoId)
+            M.addTodoTag c (M.TodoId atpObjectId) newTag
+            M.queryTodo c user (M.TodoId atpObjectId)
+          writeJSON tag
+
+handleNotesAddTag :: H ()
+handleNotesAddTag =
+  method POST (withLoggedInUser go)
+  where
+    go user =
+      getJSON >>= either (liftIO . print) addTag
+      where
+        addTag :: AddTagParams -> H ()
+        addTag AddTagParams{..} = do
+          Just tag <- withDb $ \c -> do
+            newTag <- M.newTag c user atpTag
+            M.addNoteTag c (M.NoteId atpObjectId) newTag
+            M.queryNote c user (M.NoteId atpObjectId)
           writeJSON tag
 
 -- | Render main page
@@ -172,6 +205,8 @@ routes = [ ("/login",        with auth handleLoginSubmit)
          , ("/new_user",     with auth handleNewUser)
          , ("/api/todo/tag", with auth handleTodosAddTag)
          , ("/api/todo",     with auth handleTodos)
+         , ("/api/note/tag", with auth handleNotesAddTag)
+         , ("/api/note",     with auth handleNotes)
          , ("/api/tag",      with auth handleTags)
          , ("/",             with auth mainPage)
          , ("/static",       serveDirectory "static")

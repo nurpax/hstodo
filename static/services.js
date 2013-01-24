@@ -17,6 +17,21 @@ angular.module('todoServices', ['ngResource']).
         defr.addTag = addTagRes.addTag.bind(addTagRes);
         return defr;
     }).
+    factory('Note', function($resource) {
+        var defr =
+            $resource('/api/note', {}, {
+                get:    {method:'GET'},
+                query:  {method:'GET', isArray:true},
+                save:   {method:'POST'}
+            });
+        var addTagRes =
+            $resource('/api/note/tag', {}, {
+                addTag: {method:'POST'}
+            });
+
+        defr.addTag = addTagRes.addTag.bind(addTagRes);
+        return defr;
+    }).
     factory('Tag', function($resource) {
         return $resource('/api/tag', {}, {
             query:  {method:'GET', isArray:true},

@@ -1,5 +1,5 @@
 <div class="row" ng-controller="TodoCtrl">
-  <div class="span8">
+  <div class="span9">
     <span>{{remaining()}} of {{todos.length}} remaining</span>
     [ <a href="" ng-click="archive()">archive</a> ]
 
@@ -40,9 +40,9 @@
 
   </div>
 
-  <div class="span4">
+  <div class="span3">
     <h2>Tags</h2>
-    <ul>
+    <ul class="unstyled">
       <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">
         <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>
       </li>

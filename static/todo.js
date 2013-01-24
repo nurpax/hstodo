@@ -68,9 +68,6 @@ function TodoCtrl($scope, Todo, Tag) {
 
 }
 
-function NoteListCtrl($scope, Todo, Tag) {
-}
-
 function NavList($scope, $location) {
     $scope.navClass = function (page) {
         var currentRoute = $location.path().substring(1) || 'home';
@@ -88,6 +85,14 @@ angular.module('todoApp', ['todoServices', 'ui']).
         when('/notes', {
             templateUrl: '/notes-partial.html',
             controller: NoteListCtrl
+        }).
+        when('/notes/new', {
+            templateUrl: '/note-edit-partial.html',
+            controller: NewNoteCtrl
+        }).
+        when('/notes/edit/:noteId', {
+            templateUrl: '/note-edit-partial.html',
+            controller: EditNoteCtrl
         }).
         otherwise({
             redirectTo: '/todos'
