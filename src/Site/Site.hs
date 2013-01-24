@@ -157,7 +157,7 @@ handleTodosAddTag =
         addTag AddTagParams{..} = do
           Just tag <- withDb $ \c -> do
             newTag <- M.newTag c user atpTag
-            M.addTag c (M.TodoId atpTodoId) newTag
+            M.addTodoTag c (M.TodoId atpTodoId) newTag
             M.queryTodo c user (M.TodoId atpTodoId)
           writeJSON tag
 

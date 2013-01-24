@@ -26,6 +26,9 @@ withNewDb action = do
 mkTodoId :: Integral n => n -> Maybe M.TodoId
 mkTodoId = Just . M.TodoId . fromIntegral
 
+mkNoteId :: Integral n => n -> Maybe M.NoteId
+mkNoteId = Just . M.NoteId . fromIntegral
+
 testSaveTodo :: Test
 testSaveTodo = testCase "save todo" $ do
   withNewDb $ \c -> do
@@ -63,10 +66,10 @@ testNewTag = testCase "new tag" $ do
     let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
-    t <- M.addTag c todoId_ tag
+    t <- M.addTodoTag c todoId_ tag
     tag2 <- M.newTag c defaultUser "bar"
     [tag] @=? t
-    t <- M.addTag c todoId_ tag2
+    t <- M.addTodoTag c todoId_ tag2
     [tag, tag2] @=? t
 
 testRemoveTag :: Test
@@ -77,18 +80,18 @@ testRemoveTag = testCase "remove tag" $ do
     let todoId_ = fromJust . M.todoId $ todo
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
-    t <- M.addTag c todoId_ tag
+    t <- M.addTodoTag c todoId_ tag
     tag2 <- M.newTag c defaultUser "bar"
     [tag] @=? t
-    newTags <- M.addTag c todoId_ tag2
+    newTags <- M.addTodoTag c todoId_ tag2
     [t'] <- M.listTodos c defaultUser
     [tag, tag2] @=? newTags
     [tag, tag2] @=? M.todoTags t'
-    newTags <- M.removeTag c todoId_ tag
+    newTags <- M.removeTodoTag c todoId_ tag
     [t'] <- M.listTodos c defaultUser
     [tag2] @=? newTags
     [tag2] @=? M.todoTags t'
-    t <- M.removeTag c todoId_ tag2
+    t <- M.removeTodoTag c todoId_ tag2
     [t'] <- M.listTodos c defaultUser
     [] @=? t
     [] @=? M.todoTags t'
@@ -101,10 +104,10 @@ testNewTagDupes = testCase "duplicate tags" $ do
     let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
     M.Tag 1 "foo" @=? tag
-    t <- M.addTag c todoId_ tag
+    t <- M.addTodoTag c todoId_ tag
     [tag] @=? t
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTag c todoId_ tag
+    t <- M.addTodoTag c todoId_ tag
     [tag] @=? t
 
 testNewTagDupesMultiUser :: Test
@@ -119,13 +122,81 @@ testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
     tagUsr2 <- M.newTag c defaultUser2 "foo"
     M.Tag 1 "foo" @=? tagUsr1
     M.Tag 2 "foo" @=? tagUsr2
-    t <- M.addTag c todoId1 tagUsr1
+    t <- M.addTodoTag c todoId1 tagUsr1
     [tagUsr1] @=? t
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTag c todoId1 tagUsr1
+    t <- M.addTodoTag c todoId1 tagUsr1
     [tagUsr1] @=? t
-    t <- M.addTag c todoId2 tagUsr2
+    t <- M.addTodoTag c todoId2 tagUsr2
     [tagUsr2] @=? t
+
+testSaveNote :: Test
+testSaveNote = testCase "save note" $ do
+  withNewDb $ \c -> do
+    notes <- M.listNotes c defaultUser
+    [] @=? notes
+    let note1 = (M.Note Nothing "test1" "test1 body" [])
+    let note2 = (M.Note Nothing "test2" "test2 body" [])
+    note1' <- M.saveNote c defaultUser note1
+    note1' @?= note1 { M.noteId = mkNoteId 1 }
+    notes <- M.listNotes c defaultUser
+    [note1'] @=? notes
+    note2' <- M.saveNote c defaultUser note2
+    notes <- M.listNotes c defaultUser
+    [note1', note2'] @=? notes
+
+testUpdateNote :: Test
+testUpdateNote = testCase "update note" $ do
+  withNewDb $ \c -> do
+    notes <- M.listNotes c defaultUser
+    [] @=? notes
+    let note = (M.Note Nothing "test1 title" "test1 body" [])
+    note' <- M.saveNote c defaultUser note
+    note' @?= note { M.noteId = mkNoteId 1 }
+    updated <- M.saveNote c defaultUser (note' { M.noteText = "updated text" })
+    "updated text" @=? M.noteText updated
+    "test1 title" @=? M.noteTitle updated
+    mkNoteId 1 @=? M.noteId updated
+    notes <- M.listNotes c defaultUser
+    [updated] @=? notes
+
+testTagNote :: Test
+testTagNote = testCase "tag a note" $ do
+  withNewDb $ \c -> do
+    let note = (M.Note Nothing "test1 title" "test1 body" [])
+    note' <- M.saveNote c defaultUser note
+    let noteId_ = fromJust . M.noteId $ note'
+    tag <- M.newTag c defaultUser "foo"
+    M.Tag 1 "foo" @=? tag
+    t <- M.addNoteTag c noteId_ tag
+    tag2 <- M.newTag c defaultUser "bar"
+    [tag] @=? t
+    t <- M.addNoteTag c noteId_ tag2
+    [tag, tag2] @=? t
+
+testRemoveTagNote :: Test
+testRemoveTagNote = testCase "remove tag" $ do
+  withNewDb $ \c -> do
+    let t = (M.Note Nothing "test1 title" "test1 body" [])
+    note <- M.saveNote c defaultUser t
+    let noteId_ = fromJust . M.noteId $ note
+    tag <- M.newTag c defaultUser "foo"
+    M.Tag 1 "foo" @=? tag
+    t <- M.addNoteTag c noteId_ tag
+    tag2 <- M.newTag c defaultUser "bar"
+    [tag] @=? t
+    newTags <- M.addNoteTag c noteId_ tag2
+    [t'] <- M.listNotes c defaultUser
+    [tag, tag2] @=? newTags
+    [tag, tag2] @=? M.noteTags t'
+    newTags <- M.removeNoteTag c noteId_ tag
+    [t'] <- M.listNotes c defaultUser
+    [tag2] @=? newTags
+    [tag2] @=? M.noteTags t'
+    t <- M.removeNoteTag c noteId_ tag2
+    [t'] <- M.listNotes c defaultUser
+    [] @=? t
+    [] @=? M.noteTags t'
 
 main :: IO ()
 main =
@@ -142,5 +213,11 @@ main =
         , testNewTagDupes
         , testNewTagDupesMultiUser
         , testRemoveTag
+        ]
+      , mutuallyExclusive $ testGroup "note tests"
+        [ testSaveNote
+        , testUpdateNote
+        , testTagNote
+        , testRemoveTagNote
         ]
       ]
