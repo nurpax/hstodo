@@ -24,23 +24,23 @@
   <body data-twttr-rendered="true">
 
     <header class="navbar navbar-fixed-top">
-      <div class="navbar-inner">
+      <div class="navbar-inner" ng-controller="NavList">
 
         <div class="container">
 	  <ul class="nav">
-	    <li class="active">
-	      <a scrollto href="#top">Home</a>
+	    <li ng-class="navClass('todos')">
+	      <a scrollto href="#/todos">Todos</a>
 	    </li>
           </ul>
 
 	  <ul class="nav">
-	    <li class="">
-	      <a scrollto href="#top2">About</a>
+	    <li ng-class="navClass('notes')">
+	      <a scrollto href="#/notes">Notes</a>
 	    </li>
           </ul>
 
 	  <ul class="pull-right nav">
-	    <li class="">
+	    <li ng-class="navClass('settings')">
 	      <a scrollto href="#top3">Settings</a>
 	    </li>
           </ul>
@@ -54,64 +54,15 @@
           <h1>Thask manager</h1>
         </section>
 
-        <div class="row" ng-controller="TodoCtrl">
-          <div class="span8">
-            <span>{{remaining()}} of {{todos.length}} remaining</span>
-            [ <a href="" ng-click="archive()">archive</a> ]
+        <div ng-view></div>
 
-            <form ng-submit="addTodo()">
-              <div class="form-inline">
-                <input class="input-xxlarge" type="text" ng-model="todoText"  size="30"
-                       placeholder="add new todo here">
-                <button class="btn-primary" type="submit">add</button>
-              </div>
-            </form>
-
-
-            <ul class="unstyled">
-              <li ng-repeat="todo in todos | filter:doFilterByTag">
-
-                <label class="checkbox done-{{todo.done}}">
-                  <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-                  {{todo.text}}
-                </label>
-
-
-                <div ng-controller="TodoItemCtrl">
-                  <form ng-submit="addTag()">
-                    <div class="form-inline">
-                      <input class="input-mini" type="text" ng-model="tagText" size="20"
-                             placeholder="add tag.." >
-                      <button class="btn btn-mini" type="submit">add</button>
-                    </div>
-                  </form>
-
-                  <div class="tags">
-                    <span class="tag" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</span>
-                  </div>
-                </div>
-
-              </li>
-            </ul>
-
-          </div>
-
-          <div class="span4">
-            <h2>Tags</h2>
-            <ul>
-              <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tags">
-                <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
+<!--
 	<ng-form name="dateForm">
 	  <p><input name="dateField" value="Click Here for Datepicker" ng-model="date" ui-date></p>
 	</ng-form>
+-->
 
       </div>
-
     </div>
 
   </body>
