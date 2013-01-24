@@ -2,7 +2,7 @@
 
 function TodoItemCtrl($scope, Todo, Tag) {
     $scope.addTag = function() {
-        var tag = { todoId:$scope.todo.id, tag:$scope.tagText };
+        var tag = { objectId:$scope.todo.id, tag:$scope.tagText };
 
         $scope.todo    = Todo.addTag(tag);
         $scope.tagText = '';

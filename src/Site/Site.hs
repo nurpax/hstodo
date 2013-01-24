@@ -141,7 +141,7 @@ data AddTagParams =
 
 instance FromJSON AddTagParams where
   parseJSON (Object v) =
-    AddTagParams <$> v .: "todoId"
+    AddTagParams <$> v .: "objectId"
                  <*> v .: "tag"
   parseJSON _ = mzero
 
