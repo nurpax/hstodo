@@ -23,11 +23,14 @@ module Model.Db (
 
 import           Control.Applicative
 import           Control.Monad
+import           Data.Int (Int64)
 import           Data.Maybe (fromJust, listToMaybe)
 import qualified Data.Text as T
 import           Database.SQLite.Simple
 
 import           Model.Types
+
+data TagType = TagTodo | TagNote
 
 instance FromRow Tag where
   fromRow = Tag <$> field <*> field
@@ -44,6 +47,19 @@ tableExists conn tblName = do
   case r of
     [Only (_ :: String)] -> return True
     _ -> return False
+
+tagMapTableName :: TagType -> T.Text
+tagMapTableName TagTodo = "todo_tag_map"
+tagMapTableName TagNote = "note_tag_map"
+
+createTagMapTable :: Connection -> TagType -> IO ()
+createTagMapTable conn ty =
+  execute_ conn
+  (Query $
+   T.concat [ "CREATE TABLE ", tagMapTableName ty, " ("
+            , "object_id INTEGER, "
+            , "tag_id    INTEGER)"
+            ])
 
 -- | Create the necessary database tables, if not already initialized.
 createTables :: Connection -> IO ()
@@ -62,12 +78,8 @@ createTables conn = do
                 , "saved_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "
                 , "text     TEXT, "
                 , "done     BOOLEAN)"])
-    execute_ conn
-      (Query $
-       T.concat [ "CREATE TABLE todo_tag_map ("
-                , "todo_id INTEGER, "
-                , "tag_id  INTEGER)"
-                ])
+    createTagMapTable conn TagTodo
+    createTagMapTable conn TagNote
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE notes ("
@@ -76,13 +88,6 @@ createTables conn = do
                 , "title    TEXT, "
                 , "saved_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "
                 , "text     TEXT)"])
-
-    execute_ conn
-      (Query $
-       T.concat [ "CREATE TABLE note_tag_map ("
-                , "note_id INTEGER, "
-                , "tag_id  INTEGER)"
-                ])
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE tags ("
@@ -102,12 +107,43 @@ tagNameExists conn (User uid _) tag = do
   return $ nRows /= 0
 
 -- | Is a Tag already associated with a given Todo item
-todoHasTag :: Connection -> TodoId -> Tag -> IO Bool
-todoHasTag conn (TodoId todoId_) tag = do
+isObjectTagged :: Connection -> TagType -> Int64 -> Tag -> IO Bool
+isObjectTagged conn tagType oid tag = do
+  let q = Query $ T.concat [ "SELECT count(*) FROM "
+                           , tagMapTableName tagType
+                           , " WHERE object_id = ? AND tag_id = ?"
+                           ]
   [Only nRows] <-
-    query conn "SELECT count(*) FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
-      (todoId_, tagId tag) :: IO [Only Int]
+    query conn q (oid, tagId tag) :: IO [Only Int]
   return $ nRows /= 0
+
+listObjectTags :: Connection -> TagType -> Int64 -> IO [Tag]
+listObjectTags conn tagType oid =
+  query conn
+    (Query $
+       T.concat [ "SELECT tags.id,tags.tag FROM tags, ", tagMapTableName tagType, " AS tmap "
+                , " WHERE tmap.object_id = ? AND tmap.tag_id = tags.id"
+                ])
+    (Only oid)
+
+-- | Assign a Tag to a given Object
+tagObject :: Connection -> TagType -> Int64 -> Tag -> IO [Tag]
+tagObject conn tagType oid tag = do
+  tagAlreadySet <- isObjectTagged conn tagType oid tag
+  unless tagAlreadySet $
+    execute conn
+      (Query $ T.concat ["INSERT INTO ", tagMapTableName tagType, " (object_id, tag_id) VALUES (?,?)"])
+      (oid, tagId tag)
+  listObjectTags conn tagType oid
+
+-- | Remove a Tag from a given Object
+untagObject :: Connection -> TagType -> Int64 -> Tag -> IO [Tag]
+untagObject conn tagType oid tag = do
+  execute conn
+    (Query $ T.concat ["DELETE FROM ", tagMapTableName tagType, " WHERE object_id = ? AND tag_id = ?"])
+    (oid, tagId tag)
+  listObjectTags conn tagType oid
+
 
 -- | Look for a Tag by its name
 -- Note: use only if you know the tag exists
@@ -129,13 +165,7 @@ newTag conn user@(User uid _) t = do
 
 
 listTodoTags :: Connection -> TodoId -> IO [Tag]
-listTodoTags conn (TodoId todo) =
-  query conn
-    (Query $
-       T.concat [ "SELECT tags.id,tags.tag FROM tags, todo_tag_map "
-                , "WHERE todo_tag_map.todo_id = ? AND todo_tag_map.tag_id = tags.id"
-                ])
-    (Only todo)
+listTodoTags c (TodoId todo) = listObjectTags c TagTodo todo
 
 -- | Retrieve a user's list of todos
 listTodos' :: Connection -> User -> Maybe TodoId -> IO [Todo]
@@ -156,10 +186,8 @@ listTodos :: Connection -> User -> IO [Todo]
 listTodos c u = listTodos' c u Nothing
 
 queryTodo :: Connection -> User -> TodoId -> IO (Maybe Todo)
-queryTodo conn user todoId_ = do
-  todos <- listTodos' conn user (Just todoId_)
-  return . listToMaybe $ todos
-
+queryTodo conn user todoId_ =
+  listToMaybe <$> listTodos' conn user (Just todoId_)
 
 -- | Save or update a todo
 saveTodo :: Connection -> User -> Todo -> IO Todo
@@ -177,31 +205,20 @@ saveTodo conn user@(User uid _) t =
         (todoText t, todoDone t, uid, unTodoId tid)
       fromJust <$> queryTodo conn user tid
 
--- | Assign a Tag to a given Todo
 addTodoTag :: Connection -> TodoId -> Tag -> IO [Tag]
-addTodoTag conn todo@(TodoId todoId_) tag = do
-  tagAlreadySet <- todoHasTag conn todo tag
-  unless tagAlreadySet $
-    execute conn "INSERT INTO todo_tag_map (todo_id, tag_id) VALUES (?,?)"
-      (todoId_, tagId tag)
-  listTodoTags conn todo
+addTodoTag c (TodoId todo) = tagObject c TagTodo todo
 
--- | Remove a Tag from a given Todo
 removeTodoTag :: Connection -> TodoId -> Tag -> IO [Tag]
-removeTodoTag conn todo@(TodoId todoId_) tag = do
-  execute conn "DELETE FROM todo_tag_map WHERE todo_id = ? AND tag_id = ?"
-    (todoId_, tagId tag)
-  listTodoTags conn todo
+removeTodoTag c (TodoId todo) = untagObject c TagTodo todo
 
+addNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
+addNoteTag c (NoteId note) = tagObject c TagNote note
+
+removeNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
+removeNoteTag c (NoteId note) = untagObject c TagNote note
 
 listNoteTags :: Connection -> NoteId -> IO [Tag]
-listNoteTags conn (NoteId id_) =
-  query conn
-    (Query $
-       T.concat [ "SELECT tags.id,tags.tag FROM tags, note_tag_map "
-                , "WHERE note_tag_map.note_id = ? AND note_tag_map.tag_id = tags.id"
-                ])
-    (Only id_)
+listNoteTags c (NoteId note) = listObjectTags c TagNote note
 
 -- | Retrieve a user's list of notes
 listNotes' :: Connection -> User -> Maybe NoteId -> IO [Note]
@@ -222,15 +239,15 @@ listNotes :: Connection -> User -> IO [Note]
 listNotes c u = listNotes' c u Nothing
 
 queryNote :: Connection -> User -> NoteId -> IO (Maybe Note)
-queryNote conn user noteId_ = do
-  listNotes' conn user (Just noteId_) >>= return . listToMaybe
+queryNote conn user noteId_ =
+  listToMaybe <$> listNotes' conn user (Just noteId_)
 
 -- | Save or update a note
 saveNote :: Connection -> User -> Note -> IO Note
 saveNote conn user@(User uid _) n =
-  maybe new update (noteId n)
+  maybe insert update (noteId n)
   where
-    new = do
+    insert = do
       execute conn "INSERT INTO notes (user_id,title,text) VALUES (?,?,?)"
         (uid, noteTitle n, noteText n)
       rowId <- lastInsertRowId conn
@@ -241,30 +258,6 @@ saveNote conn user@(User uid _) n =
         (noteTitle n, noteText n, uid, unNoteId nid)
       fromJust <$> queryNote conn user nid
 
-
--- | Is a Tag already associated with a given Note item
-noteHasTag :: Connection -> NoteId -> Tag -> IO Bool
-noteHasTag conn (NoteId noteId_) tag = do
-  [Only nRows] <-
-    query conn "SELECT count(*) FROM note_tag_map WHERE note_id = ? AND tag_id = ?"
-      (noteId_, tagId tag) :: IO [Only Int]
-  return $ nRows /= 0
-
--- | Assign a Tag to a given Note
-addNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
-addNoteTag conn note@(NoteId noteId_) tag = do
-  tagAlreadySet <- noteHasTag conn note tag
-  unless tagAlreadySet $
-    execute conn "INSERT INTO note_tag_map (note_id, tag_id) VALUES (?,?)"
-      (noteId_, tagId tag)
-  listNoteTags conn note
-
--- | Remove a Tag from a given Note
-removeNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
-removeNoteTag conn note@(NoteId noteId_) tag = do
-  execute conn "DELETE FROM note_tag_map WHERE note_id = ? AND tag_id = ?"
-    (noteId_, tagId tag)
-  listNoteTags conn note
 
 -- | Retrieve a user's list of tags
 listTags :: Connection -> User -> IO [Tag]
