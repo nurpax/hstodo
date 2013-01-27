@@ -103,14 +103,11 @@ handleTodos =
   method GET  (withLoggedInUser get) <|>
   method POST (withLoggedInUser save)
   where
-    get user = (withDb $ \conn -> M.listTodos conn user) >>= writeJSON
+    get user = withDb (`M.listTodos` user) >>= writeJSON
 
-    save user = do
-      getJSON >>= either (const $ return ()) persist
-        where
-          persist todo = do
-            (withDb $ \conn -> M.saveTodo conn user todo) >>= writeJSON
-
+    save user = logRunEitherT $ do
+      todo <- lift getJSON >>= hoistEither
+      return $ withDb (\conn -> M.saveTodo conn user todo) >>= writeJSON
 
 handleNotes :: H ()
 handleNotes =
@@ -121,17 +118,15 @@ handleNotes =
       id_ <- getParam "id"
       case id_ of
         Nothing ->
-          (withDb $ \conn -> M.listNotes conn user) >>= writeJSON
+          withDb (`M.listNotes` user) >>= writeJSON
         Just noteId ->
           logRunEitherT $ do
             nid <- hoistEither (reader T.decimal (T.decodeUtf8 noteId))
-            return $ (withDb $ \conn -> M.queryNote conn user (M.NoteId nid)) >>= writeJSON
+            return $ withDb (\conn -> M.queryNote conn user (M.NoteId nid)) >>= writeJSON
 
-    save user = do
-      getJSON >>= either (const $ return ()) persist
-        where
-          persist todo = do
-            (withDb $ \conn -> M.saveNote conn user todo) >>= writeJSON
+    save user = logRunEitherT $ do
+      n <- lift getJSON >>= hoistEither
+      return $ withDb (\conn -> M.saveNote conn user n) >>= writeJSON
 
 -- TODO lot of duplicate code here, find a way to reuse
 handleTags :: H ()
