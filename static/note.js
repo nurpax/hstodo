@@ -3,7 +3,6 @@ function NoteListCtrl($scope, Note, Tag) {
     // TODO query should probably only list notes with titles but not
     // take note body too
     $scope.notes = Note.query();
-
 }
 
 function NewNoteCtrl($scope, $location, Note, Tag) {
@@ -15,7 +14,7 @@ function NewNoteCtrl($scope, $location, Note, Tag) {
     };
 }
 
-function EditNoteCtrl($scope, $location, $routeParams, Note, Tag) {
+function EditNoteCtrl($scope, $location, $routeParams, Note, Tag, AppState) {
     $scope.note = Note.get({id:$routeParams.noteId});
 
     $scope.save = function() {

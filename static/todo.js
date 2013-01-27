@@ -1,18 +1,19 @@
 'use strict';
 
-function TodoItemCtrl($scope, Todo, Tag) {
+function TodoItemCtrl($scope, Todo, Tag, AppState) {
     $scope.addTag = function() {
         var tag = { objectId:$scope.todo.id, tag:$scope.tagText };
 
         $scope.todo    = Todo.addTag(tag);
         $scope.tagText = '';
-        // TODO is there some way to do stuff like below with binding?
-        //$scope.$parent.tags = Tag.query();
+
+        AppState.setTags(Tag.query());
     };
 }
 
-function TodoCtrl($scope, Todo, Tag) {
-    $scope.tags = Tag.query();
+function TodoCtrl($scope, Todo, Tag, AppState) {
+    AppState.setTags(Tag.query());
+
     $scope.todos = Todo.query();
 
     $scope.addTodo = function() {
@@ -45,15 +46,11 @@ function TodoCtrl($scope, Todo, Tag) {
         });
     };
 
-    $scope.toggleTagFilter = function (tag) {
-        tag.enabled = !tag.enabled;
-    };
-
     // Filter todos based on selected tags
     $scope.doFilterByTag = function(todo) {
         var enabledTags = 0;
         var foundTags   = 0;
-        angular.forEach($scope.tags, function (tag) {
+        angular.forEach(AppState.getTags(), function (tag) {
             if (tag.enabled)
             {
                 enabledTags++;
@@ -65,7 +62,6 @@ function TodoCtrl($scope, Todo, Tag) {
         });
         return enabledTags == foundTags;
     };
-
 }
 
 function NavList($scope, $location) {
@@ -75,7 +71,7 @@ function NavList($scope, $location) {
     };
 }
 
-angular.module('todoApp', ['todoServices', 'ui']).
+angular.module('todoApp', ['todoServices', 'components', 'ui']).
     config(['$routeProvider', function($routeProvider) {
     $routeProvider.
         when('/todos', {

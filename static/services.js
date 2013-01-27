@@ -36,4 +36,15 @@ angular.module('todoServices', ['ngResource']).
         return $resource('/api/tag', {}, {
             query:  {method:'GET', isArray:true},
         });
+    }).
+    factory('AppState', function() {
+        this.tagList = [];
+        return {
+            setTags : function(lst) {
+                this.tagList = lst;
+            },
+            getTags : function() {
+                return this.tagList;
+            }
+        }
     });
