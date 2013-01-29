@@ -25,3 +25,13 @@ angular.module('components', ['todoServices']).
             replace: true
         };
     })
+    .directive('markdown', function() {
+        var showdown = new Showdown.converter();
+
+        return {
+            restrict: 'E',
+            link: function(scope, element, attrs) {
+                element.html(showdown.makeHtml(element.text()));
+            }
+        }
+    })
