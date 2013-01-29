@@ -14,11 +14,11 @@ angular.module('components', ['todoServices']).
                 };
             },
             template:
-                '<div>'+
+                '<div class="selecttags">'+
                 '  <h2>Tags</h2>'+
                 '    <ul class="unstyled">'+
                 '      <li ng-click="toggleTagFilter(tag)" ng-repeat="tag in tagList()">'+
-                '      <span class="tag-filter {{tag.enabled}}">{{tag.tag}}</span>'+
+                '      <span class="label" ng-class="{selected: tag.enabled}">{{tag.tag}}</span>'+
                 '    </li>'+
                 '  </ul>'+
                 '</div>',

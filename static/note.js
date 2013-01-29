@@ -17,9 +17,16 @@ function NewNoteCtrl($scope, $location, Note, Tag) {
 function EditNoteCtrl($scope, $location, $routeParams, Note, Tag, AppState) {
     $scope.note = Note.get({id:$routeParams.noteId});
 
-    $scope.save = function() {
+    $scope.save = function(reallySave) {
+        var loc = '/notes';
+
+        if (!reallySave) {
+            $location.path(loc);
+            return;
+        }
+
         Note.save($scope.note, function () {
-            $location.path('/notes');
+            $location.path(loc);
         });
     };
 }

@@ -1,52 +1,40 @@
 body {
-	margin-top: 40px;
+    margin-top: 40px;
 }
 section {
-	padding-top: 20px;
+    padding-top: 20px;
 }
 
 a {
-   text-decoration: underline;
+    text-decoration: underline;
 }
 a :hover {
-   cursor: pointer;
-   text-decoration: underline;
-}
-img {
-   border: none;
+    text-decoration: underline;
 }
 
+img {
+    border: none;
+}
 
 .done-true {
-  text-decoration: line-through;
-  color: grey;
+    text-decoration: line-through;
+    color: grey;
 }
 
-div.tags {
-  padding-top:1px;
-  padding-bottom:1px;
+/*------------------------------------------------*/
+/* tag related CSS */
+/*------------------------------------------------*/
+div.tags .label {
+    margin:2px;
 }
 
-div.tags span {
-  margin:2px;
-  padding-top:1px;
-  padding-bottom:1px;
-  padding-left:3px;
-  padding-right:3px;
-
-  background-color:#abc;
-  border-radius: 3px;
+.selecttags .label {
+    background-color:#ccc;
+    color:#333;
+    text-shadow: none;
 }
 
-/* TODO re-use CSS from div.tags */
-.tag-filter {
-  border-radius: 3px;
-  background-color:#fff;
-}
-
-.tag-filter.false {
-}
-
-.tag-filter.true {
-  background-color:#abc;
+.label.selected {
+    background-color:#459;
+    color:#fff;
 }
