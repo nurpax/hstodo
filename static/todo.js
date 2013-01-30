@@ -86,6 +86,10 @@ angular.module('todoApp', ['todoServices', 'components', 'ui']).
             templateUrl: '/note-edit-partial.html',
             controller: NewNoteCtrl
         }).
+        when('/notes/view/:noteId', {
+            templateUrl: '/note-view-partial.html',
+            controller: ViewNoteCtrl
+        }).
         when('/notes/edit/:noteId', {
             templateUrl: '/note-edit-partial.html',
             controller: EditNoteCtrl

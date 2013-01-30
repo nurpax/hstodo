@@ -30,8 +30,13 @@ angular.module('components', ['todoServices']).
 
         return {
             restrict: 'E',
+            scope: { content: '=' },
             link: function(scope, element, attrs) {
-                element.html(showdown.makeHtml(element.text()));
+                // TODO kludgy, there must be a way without $watch & if (r)
+                scope.$watch('content', function (r) {
+                    if (r)
+                        element.html(showdown.makeHtml(r));
+                });
             }
         }
     })

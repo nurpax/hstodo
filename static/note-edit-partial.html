@@ -1,7 +1,7 @@
-<div class="row" ng-controller="EditNoteCtrl">
+<div class="row">
   <div class="span8">
 
-    <form ng-submit="save(true)">
+    <form ng-submit="save()">
       <div>
         <span class="help-block">Title</span>
         <input class="field span5" type="text" ng-model="note.title"  size="40"
@@ -11,8 +11,8 @@
       </div>
 
       <div class="form-inline">
-        <button class="btn btn-primary" type="submit">save</button>
-        <button class="btn" ng-click="save(false)">cancel</button>
+        <button class="btn btn-primary" type="submit">Save</button>
+        <button class="btn" ng-click="cancel()">Cancel</button>
       </div>
     </form>
   </div>
