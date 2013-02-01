@@ -12,13 +12,15 @@ module Site.Site
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Concurrent (withMVar)
-import           Control.Monad (mzero)
+import           Control.Monad (mzero, when)
+import           Control.Monad.State (gets)
 import           Control.Monad.Trans (liftIO, lift)
 import           Control.Monad.Trans.Either
 import           Control.Error.Safe (tryJust)
 import           Control.Lens ((^#))
 import           Data.Aeson
 import           Data.ByteString (ByteString)
+import qualified Data.Configurator as DC
 import           Data.Int (Int64)
 import           Data.Maybe
 import qualified Data.Text as T
@@ -42,10 +44,10 @@ import qualified Model as M
 import           Site.Application
 import           Site.Util
 
-type H = Handler App (AuthManager App)
+type H = Handler App App
 
 -- | Render login form
-handleLogin :: Maybe T.Text -> H ()
+handleLogin :: Maybe T.Text -> Handler App (AuthManager App) ()
 handleLogin authError =
   heistLocal (I.bindSplices errs) $ render "login"
   where
@@ -57,21 +59,21 @@ handleLogin authError =
 -- login exists in the user database.
 handleLoginSubmit :: H ()
 handleLoginSubmit =
-  loginUser "login" "password" Nothing
-    (const . handleLogin . Just $ "Unknown login or incorrect password")
+  with auth $ loginUser "login" "password" Nothing
+    (\_ -> handleLogin . Just $ "Unknown login or incorrect password")
     (redirect "/")
 
 -- | Logs out and redirects the user to the site index.
 handleLogout :: H ()
-handleLogout = logout >> redirect "/"
+handleLogout = with auth logout >> redirect "/"
 
 -- | Handle new user form submit
 handleNewUser :: H ()
-handleNewUser =
+handleNewUser = do
   method GET (renderNewUserForm Nothing) <|> method POST handleFormSubmit
   where
     handleFormSubmit = do
-      authUser <- registerUser "login" "password"
+      authUser <- with auth $ registerUser "login" "password"
       either (renderNewUserForm . Just) login authUser
 
     renderNewUserForm (err :: Maybe AuthFailure) =
@@ -79,15 +81,27 @@ handleNewUser =
       where
         errs = [("newUserError", I.textSplice . T.pack . show $ c) | c <- maybeToList err]
 
-    login user = logRunEitherT $
-      lift $ forceLogin user >> redirect "/"
+    login user =
+      logRunEitherT $
+        lift $ (with auth (forceLogin user) >> redirect "/")
+
+-- | Create dummy user for unit & E2E testing
+createTestUser :: H ()
+createTestUser = do
+  user <- with auth $ createUser "test" "test"
+  either (\_ -> return ()) (\u -> with auth $ forceLogin u >> return ()) user
 
 -- | Run actions with a logged in user or go back to the login screen
 withLoggedInUser :: (M.User -> H ()) -> H ()
-withLoggedInUser action =
-  currentUser >>= go
+withLoggedInUser action = do
+  useTestUser <- gets _testUserOverride
+  when useTestUser createTestUser
+  user <- with auth currentUser
+  go user
   where
-    go Nothing  = handleLogin (Just "Must be logged in to view the main page")
+    go :: Maybe AuthUser -> H ()
+    go Nothing  =
+      with auth $ handleLogin (Just "Must be logged in to view the main page")
     go (Just u) = logRunEitherT $ do
       uid  <- tryJust "withLoggedInUser: missing uid" (userId u)
       uid' <- hoistEither (reader T.decimal (unUid uid))
@@ -195,15 +209,15 @@ mainPage = withLoggedInUser (const $ serveDirectory "static")
 
 -- | The application's routes.
 routes :: [(ByteString, Handler App App ())]
-routes = [ ("/login",        with auth handleLoginSubmit)
-         , ("/logout",       with auth handleLogout)
-         , ("/new_user",     with auth handleNewUser)
-         , ("/api/todo/tag", with auth handleTodosAddTag)
-         , ("/api/todo",     with auth handleTodos)
-         , ("/api/note/tag", with auth handleNotesAddTag)
-         , ("/api/note",     with auth handleNotes)
-         , ("/api/tag",      with auth handleTags)
-         , ("/",             with auth mainPage)
+routes = [ ("/login",        handleLoginSubmit)
+         , ("/logout",       handleLogout)
+         , ("/new_user",     handleNewUser)
+         , ("/api/todo/tag", handleTodosAddTag)
+         , ("/api/todo",     handleTodos)
+         , ("/api/note/tag", handleNotesAddTag)
+         , ("/api/note",     handleNotes)
+         , ("/api/tag",      handleTags)
+         , ("/",             mainPage)
          , ("/static",       serveDirectory "static")
          ]
 
@@ -222,11 +236,13 @@ app = makeSnaplet "app" "An snaplet example application." Nothing $ do
     d <- nestSnaplet "db" db sqliteInit
     a <- nestSnaplet "auth" auth $ initSqliteAuth sess d
 
+    cc <- getSnapletUserConfig
+    useTestUser <- liftIO $ DC.lookupDefault False cc "test-user-override"
+
     -- Grab the DB connection pool from the sqlite snaplet and call
     -- into the Model to create all the DB tables if necessary.
     let conn = sqliteConn $ d ^# snapletValue
     liftIO $ withMVar conn M.createTables
 
     addAuthSplices auth
-    return $ App h s d a
-
+    return $ App h s d a useTestUser
