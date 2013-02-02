@@ -12,7 +12,7 @@ module Site.Site
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Concurrent (withMVar)
-import           Control.Monad (mzero, when)
+import           Control.Monad (mzero, when, void)
 import           Control.Monad.State (gets)
 import           Control.Monad.Trans (liftIO, lift)
 import           Control.Monad.Trans.Either
@@ -69,7 +69,7 @@ handleLogout = with auth logout >> redirect "/"
 
 -- | Handle new user form submit
 handleNewUser :: H ()
-handleNewUser = do
+handleNewUser =
   method GET (renderNewUserForm Nothing) <|> method POST handleFormSubmit
   where
     handleFormSubmit = do
@@ -83,13 +83,13 @@ handleNewUser = do
 
     login user =
       logRunEitherT $
-        lift $ (with auth (forceLogin user) >> redirect "/")
+        lift (with auth (forceLogin user) >> redirect "/")
 
 -- | Create dummy user for unit & E2E testing
 createTestUser :: H ()
 createTestUser = do
   user <- with auth $ createUser "test" "test"
-  either (\_ -> return ()) (\u -> with auth $ forceLogin u >> return ()) user
+  either (\_ -> return ()) (void . with auth . forceLogin) user
 
 -- | Run actions with a logged in user or go back to the login screen
 withLoggedInUser :: (M.User -> H ()) -> H ()
