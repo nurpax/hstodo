@@ -12,7 +12,7 @@ module Site.Site
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Concurrent (withMVar)
-import           Control.Monad (mzero, when, void)
+import           Control.Monad (mzero, when, unless, void)
 import           Control.Monad.State (gets)
 import           Control.Monad.Trans (liftIO, lift)
 import           Control.Monad.Trans.Either
@@ -86,22 +86,22 @@ handleNewUser =
         lift (with auth (forceLogin user) >> redirect "/")
 
 -- | Create dummy user for unit & E2E testing
-createTestUser :: H ()
+createTestUser :: H (Maybe AuthUser)
 createTestUser = do
-  user <- with auth $ createUser "test" "test"
-  either (const . return $ ()) loginTestUser user
+  testUserExists <- with auth $ usernameExists "test"
+  unless testUserExists (void $ with auth $ createUser "test" "test")
+  loginTestUser
   where
-    loginTestUser _user =
-      void $ with auth $ loginByUsername "test" (ClearText "test") True
+    loginTestUser = do
+      userOrErr <- with auth $ loginByUsername "test" (ClearText "test") True
+      either (\_ -> return Nothing) (return . Just) userOrErr
 
 
 -- | Run actions with a logged in user or go back to the login screen
 withLoggedInUser :: (M.User -> H ()) -> H ()
 withLoggedInUser action = do
   useTestUser <- gets _testUserOverride
-  when useTestUser createTestUser
-  user <- with auth currentUser
-  go user
+  go =<< if useTestUser then createTestUser else with auth currentUser
   where
     go :: Maybe AuthUser -> H ()
     go Nothing  =
