@@ -89,7 +89,11 @@ handleNewUser =
 createTestUser :: H ()
 createTestUser = do
   user <- with auth $ createUser "test" "test"
-  either (\_ -> return ()) (void . with auth . forceLogin) user
+  either (const . return $ ()) loginTestUser user
+  where
+    loginTestUser _user =
+      void $ with auth $ loginByUsername "test" (ClearText "test") True
+
 
 -- | Run actions with a logged in user or go back to the login screen
 withLoggedInUser :: (M.User -> H ()) -> H ()
