@@ -22,11 +22,11 @@ defaultUser2 :: M.User
 defaultUser2 = M.User 2 "testUser2"
 
 withNewDb :: (S.Connection -> IO a) -> IO a
-withNewDb action = do
+withNewDb action =
   bracket (S.open ":memory:") S.close (\c -> M.createTables c >> action c)
 
 mkDefaultTodo :: T.Text -> M.Todo
-mkDefaultTodo text = (M.Todo Nothing "test1" False Nothing [])
+mkDefaultTodo text = M.Todo Nothing "test1" False Nothing []
 
 mkTodoId :: Integral n => n -> Maybe M.TodoId
 mkTodoId = Just . M.TodoId . fromIntegral
@@ -35,7 +35,7 @@ mkNoteId :: Integral n => n -> Maybe M.NoteId
 mkNoteId = Just . M.NoteId . fromIntegral
 
 testSaveTodo :: Test
-testSaveTodo = testCase "save todo" $ do
+testSaveTodo = testCase "save todo" $
   withNewDb $ \c -> do
     todos <- M.listTodos c defaultUser
     [] @=? todos
@@ -50,7 +50,7 @@ testSaveTodo = testCase "save todo" $ do
     [todo1', todo2'] @=? todos
 
 testUpdateTodo :: Test
-testUpdateTodo = testCase "update todo" $ do
+testUpdateTodo = testCase "update todo" $
   withNewDb $ \c -> do
     todos <- M.listTodos c defaultUser
     [] @=? todos
@@ -64,16 +64,17 @@ testUpdateTodo = testCase "update todo" $ do
     [updated] @=? todos
 
 testUpdateActivatesTodo :: Test
-testUpdateActivatesTodo = testCase "update todo activates" $ do
+testUpdateActivatesTodo = testCase "update todo activates" $
   withNewDb $ \c -> do
-    let activatesTime  = read $ "2012-08-20 00:00:00" :: UTCTime
-    let activatesTime2 = read $ "2012-05-20 00:10:00" :: UTCTime
+    let activatesTime  = read "2012-08-20 00:00:00" :: UTCTime
+    let activatesTime2 = read "2012-05-20 00:10:00" :: UTCTime
     let todo = (mkDefaultTodo "test1") { M.todoActivatesOn = Just activatesTime }
     todo' <- M.saveTodo c defaultUser todo
     todo' @?= todo { M.todoId = mkTodoId 1 }
     Just activatesTime @?= M.todoActivatesOn todo'
-    updated <- M.saveTodo c defaultUser (todo' { M.todoText = "updated text"
-                                               , M.todoActivatesOn = Just activatesTime2 })
+    updated <- M.saveTodo c defaultUser
+                 (todo' { M.todoText = "updated text"
+                        , M.todoActivatesOn = Just activatesTime2 })
     "updated text" @=? M.todoText updated
     mkTodoId 1 @=? M.todoId updated
     Just activatesTime2 @?= M.todoActivatesOn updated
@@ -81,7 +82,7 @@ testUpdateActivatesTodo = testCase "update todo activates" $ do
     [updated] @=? todos
 
 testNewTag :: Test
-testNewTag = testCase "new tag" $ do
+testNewTag = testCase "new tag" $
   withNewDb $ \c -> do
     let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
@@ -95,7 +96,7 @@ testNewTag = testCase "new tag" $ do
     [tag, tag2] @=? t
 
 testRemoveTag :: Test
-testRemoveTag = testCase "remove tag" $ do
+testRemoveTag = testCase "remove tag" $
   withNewDb $ \c -> do
     let t = mkDefaultTodo "test1"
     todo <- M.saveTodo c defaultUser t
@@ -119,7 +120,7 @@ testRemoveTag = testCase "remove tag" $ do
     [] @=? M.todoTags t'
 
 testNewTagDupes :: Test
-testNewTagDupes = testCase "duplicate tags" $ do
+testNewTagDupes = testCase "duplicate tags" $
   withNewDb $ \c -> do
     let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
@@ -133,7 +134,7 @@ testNewTagDupes = testCase "duplicate tags" $ do
     [tag] @=? t
 
 testNewTagDupesMultiUser :: Test
-testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
+testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $
   withNewDb $ \c -> do
     let t = mkDefaultTodo "test1"
     todoUsr1 <- M.saveTodo c defaultUser  t
@@ -153,12 +154,12 @@ testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
     [tagUsr2] @=? t
 
 testSaveNote :: Test
-testSaveNote = testCase "save note" $ do
+testSaveNote = testCase "save note" $
   withNewDb $ \c -> do
     notes <- M.listNotes c defaultUser
     [] @=? notes
-    let note1 = (M.Note Nothing "test1" "test1 body" [])
-    let note2 = (M.Note Nothing "test2" "test2 body" [])
+    let note1 = M.Note Nothing "test1" "test1 body" []
+    let note2 = M.Note Nothing "test2" "test2 body" []
     note1' <- M.saveNote c defaultUser note1
     note1' @?= note1 { M.noteId = mkNoteId 1 }
     notes <- M.listNotes c defaultUser
@@ -168,11 +169,11 @@ testSaveNote = testCase "save note" $ do
     [note1', note2'] @=? notes
 
 testUpdateNote :: Test
-testUpdateNote = testCase "update note" $ do
+testUpdateNote = testCase "update note" $
   withNewDb $ \c -> do
     notes <- M.listNotes c defaultUser
     [] @=? notes
-    let note = (M.Note Nothing "test1 title" "test1 body" [])
+    let note = M.Note Nothing "test1 title" "test1 body" []
     note' <- M.saveNote c defaultUser note
     note' @?= note { M.noteId = mkNoteId 1 }
     updated <- M.saveNote c defaultUser (note' { M.noteText = "updated text" })
@@ -183,9 +184,9 @@ testUpdateNote = testCase "update note" $ do
     [updated] @=? notes
 
 testTagNote :: Test
-testTagNote = testCase "tag a note" $ do
+testTagNote = testCase "tag a note" $
   withNewDb $ \c -> do
-    let note = (M.Note Nothing "test1 title" "test1 body" [])
+    let note = M.Note Nothing "test1 title" "test1 body" []
     note' <- M.saveNote c defaultUser note
     let noteId_ = fromJust . M.noteId $ note'
     tag <- M.newTag c defaultUser "foo"
@@ -197,9 +198,9 @@ testTagNote = testCase "tag a note" $ do
     [tag, tag2] @=? t
 
 testRemoveTagNote :: Test
-testRemoveTagNote = testCase "remove tag" $ do
+testRemoveTagNote = testCase "remove tag" $
   withNewDb $ \c -> do
-    let t = (M.Note Nothing "test1 title" "test1 body" [])
+    let t = M.Note Nothing "test1 title" "test1 body" []
     note <- M.saveNote c defaultUser t
     let noteId_ = fromJust . M.noteId $ note
     tag <- M.newTag c defaultUser "foo"
@@ -222,7 +223,7 @@ testRemoveTagNote = testCase "remove tag" $ do
 
 main :: IO ()
 main =
-  defaultMain tests `finally` (return ())
+  defaultMain tests `finally` return ()
 
   where
     tests =
