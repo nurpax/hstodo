@@ -12,7 +12,7 @@ module Site.Site
 ------------------------------------------------------------------------------
 import           Control.Applicative
 import           Control.Concurrent (withMVar)
-import           Control.Monad (mzero, when, unless, void)
+import           Control.Monad (mzero, unless, void)
 import           Control.Monad.State (gets)
 import           Control.Monad.Trans (liftIO, lift)
 import           Control.Monad.Trans.Either
