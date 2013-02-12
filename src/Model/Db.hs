@@ -36,7 +36,7 @@ instance FromRow Tag where
   fromRow = Tag <$> field <*> field
 
 instance FromRow Todo where
-  fromRow = Todo <$> fmap (Just . TodoId) field <*> field <*> field <*> pure []
+  fromRow = Todo <$> fmap (Just . TodoId) field <*> field <*> field <*> field <*> pure []
 
 instance FromRow Note where
   fromRow = Note <$> fmap (Just . NoteId) field <*> field <*> field <*> pure []
@@ -73,11 +73,12 @@ createTables conn = do
     execute_ conn
       (Query $
        T.concat [ "CREATE TABLE todos ("
-                , "id       INTEGER PRIMARY KEY, "
-                , "user_id  INTEGER NOT NULL, "
-                , "saved_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "
-                , "text     TEXT, "
-                , "done     BOOLEAN)"])
+                , "id           INTEGER PRIMARY KEY, "
+                , "user_id      INTEGER NOT NULL, "
+                , "saved_on     TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "
+                , "activates_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                , "text         TEXT, "
+                , "done         BOOLEAN)"])
     createTagMapTable conn TagTodo
     createTagMapTable conn TagNote
     execute_ conn
@@ -173,9 +174,9 @@ listTodos' conn (User uid _) todoId_  = do
   todos <-
     case todoId_ of
       Nothing ->
-        query conn "SELECT id,text,done FROM todos WHERE user_id = ?" (Only uid)
+        query conn "SELECT id,text,done,activates_on FROM todos WHERE user_id = ?" (Only uid)
       Just (TodoId tid) ->
-        query conn "SELECT id,text,done FROM todos WHERE (user_id = ? AND id = ?)" (uid, tid)
+        query conn "SELECT id,text,done,activates_on FROM todos WHERE (user_id = ? AND id = ?)" (uid, tid)
   mapM queryTags todos
   where
     queryTags todo = do
@@ -195,14 +196,17 @@ saveTodo conn user@(User uid _) t =
   maybe newTodo updateTodo (todoId t)
   where
     newTodo = do
-      execute conn "INSERT INTO todos (user_id,text,done) VALUES (?,?,?)"
-        (uid, todoText t, todoDone t)
+      execute conn "INSERT INTO todos (user_id,text,done,activates_on) VALUES (?,?,?,?)"
+        (uid, todoText t, todoDone t, todoActivatesOn t)
       rowId <- lastInsertRowId conn
       return $ t { todoId = Just . TodoId $ rowId }
 
     updateTodo tid = do
-      execute conn "UPDATE todos SET text = ?, done = ? WHERE (user_id = ? AND id = ?)"
-        (todoText t, todoDone t, uid, unTodoId tid)
+      let q = Query $ T.concat [ "UPDATE todos SET "
+                               , "text = ?, done = ?, activates_on = ? "
+                               , "WHERE (user_id = ? AND id = ?)"
+                               ]
+      execute conn q (todoText t, todoDone t, todoActivatesOn t, uid, unTodoId tid)
       fromJust <$> queryTodo conn user tid
 
 addTodoTag :: Connection -> TodoId -> Tag -> IO [Tag]

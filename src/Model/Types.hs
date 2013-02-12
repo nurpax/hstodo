@@ -15,6 +15,7 @@ import           Data.Aeson
 import           Data.Int (Int64)
 import           Data.Maybe
 import qualified Data.Text as T
+import           Data.Time (UTCTime)
 
 data User = User Int T.Text
 
@@ -29,10 +30,11 @@ newtype NoteId = NoteId { unNoteId :: Int64 } deriving (Show, Eq)
 
 data Todo =
   Todo
-  { todoId   :: Maybe TodoId
-  , todoText :: T.Text
-  , todoDone :: Bool
-  , todoTags :: [Tag]
+  { todoId          :: Maybe TodoId
+  , todoText        :: T.Text
+  , todoDone        :: Bool
+  , todoActivatesOn :: Maybe UTCTime
+  , todoTags        :: [Tag]
   } deriving (Show, Eq)
 
 data Note =
@@ -60,15 +62,17 @@ instance FromJSON Todo where
     Todo <$> optional (TodoId <$> (v .: "id"))
          <*> v .: "text"
          <*> v .: "done"
+         <*> optional (v .: "activatesOn")
          <*> (maybeToList <$> optional (v .: "tags"))
   parseJSON _ = mzero
 
 instance ToJSON Todo where
-  toJSON (Todo i text done tags) =
-    object [ "id"   .= (unTodoId . fromJust $ i)
-           , "text" .= text
-           , "done" .= done
-           , "tags" .= tags
+  toJSON (Todo i text done activatesOn tags) =
+    object [ "id"          .= (unTodoId . fromJust $ i)
+           , "text"        .= text
+           , "done"        .= done
+           , "activatesOn" .= activatesOn
+           , "tags"        .= tags
            ]
 
 

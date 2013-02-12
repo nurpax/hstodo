@@ -37,6 +37,64 @@ function addTodoTag(todoId, tag)
         .toss();
 }
 
+function activatesOnTests()
+{
+    // Add todo with activatesOn:null
+    frisby.create('Create todo with activatesOn:null')
+        .post('http://localhost:8000/api/todo',
+              {},
+              { json: {
+                  text: "todo act on 1",
+                  done: false,
+                  activatesOn: null
+              }
+              })
+        .expectStatus(200)
+        .expectHeaderContains('content-type', 'application/json')
+        .expectJSON({
+            text: "todo act on 1",
+            activatesOn: null
+        })
+        .toss();
+
+    // Add todo with activatesOn:null
+    frisby.create('Create todo with activatesOn:date')
+        .post('http://localhost:8000/api/todo',
+              {},
+              { json: {
+                  text: "todo act on 2",
+                  done: false,
+                  activatesOn: new Date('2000-01-01')
+              }
+              })
+        .expectStatus(200)
+        .expectHeaderContains('content-type', 'application/json')
+        .expectJSON({
+            text: "todo act on 2",
+            activatesOn: '2000-01-01T00:00:00Z'
+        })
+        .afterJSON(function (todo) {
+            // Spawn a new test on created todo response.  Test that
+            // the created todo is still in the response
+            frisby.create('List activates on todos')
+                .get('http://localhost:8000/api/todo')
+                .expectStatus(200)
+                .expectHeaderContains('content-type', 'application/json')
+                .afterJSON(function (lst) {
+                    var found = null;
+                    for (var i = 0; i < lst.length; i++) {
+                        if (lst[i].id == todo.id)
+                            found = lst[i];
+                    }
+                    expect(found).not.toBe(null);
+                })
+                .toss();
+
+        })
+        .toss();
+}
+
+
 addTodo("test todo 1");
 
 frisby.create('List one todo')
@@ -70,3 +128,5 @@ frisby.create('List two tagged todos')
     .expectJSON([{id: 1, text: "test todo 1", tags:[{tag:"tag1"}, {tag:"tag2"}]},
                  {id: 2, text: "test todo 2", tags:[{tag:"tag2"}]}])
   .toss();
+
+activatesOnTests();

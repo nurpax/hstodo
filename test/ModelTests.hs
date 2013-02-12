@@ -4,6 +4,8 @@ import           Control.Exception hiding (Handler)
 import           Control.Monad
 import           Data.Int (Int64)
 import           Data.Maybe (fromJust)
+import qualified Data.Text as T
+import           Data.Time (UTCTime)
 import           Prelude hiding (catch)
 import           Test.Framework
 import           Test.Framework.Providers.HUnit
@@ -23,6 +25,9 @@ withNewDb :: (S.Connection -> IO a) -> IO a
 withNewDb action = do
   bracket (S.open ":memory:") S.close (\c -> M.createTables c >> action c)
 
+mkDefaultTodo :: T.Text -> M.Todo
+mkDefaultTodo text = (M.Todo Nothing "test1" False Nothing [])
+
 mkTodoId :: Integral n => n -> Maybe M.TodoId
 mkTodoId = Just . M.TodoId . fromIntegral
 
@@ -34,8 +39,8 @@ testSaveTodo = testCase "save todo" $ do
   withNewDb $ \c -> do
     todos <- M.listTodos c defaultUser
     [] @=? todos
-    let todo1 = (M.Todo Nothing "test1" False [])
-    let todo2 = (M.Todo Nothing "test2" False [])
+    let todo1 = mkDefaultTodo "test1"
+    let todo2 = mkDefaultTodo "test2"
     todo1' <- M.saveTodo c defaultUser todo1
     todo1' @?= todo1 { M.todoId = mkTodoId 1 }
     todos <- M.listTodos c defaultUser
@@ -49,7 +54,7 @@ testUpdateTodo = testCase "update todo" $ do
   withNewDb $ \c -> do
     todos <- M.listTodos c defaultUser
     [] @=? todos
-    let todo = (M.Todo Nothing "test1" False [])
+    let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
     todo' @?= todo { M.todoId = mkTodoId 1 }
     updated <- M.saveTodo c defaultUser (todo' { M.todoText = "updated text" })
@@ -58,10 +63,27 @@ testUpdateTodo = testCase "update todo" $ do
     todos <- M.listTodos c defaultUser
     [updated] @=? todos
 
+testUpdateActivatesTodo :: Test
+testUpdateActivatesTodo = testCase "update todo activates" $ do
+  withNewDb $ \c -> do
+    let activatesTime  = read $ "2012-08-20 00:00:00" :: UTCTime
+    let activatesTime2 = read $ "2012-05-20 00:10:00" :: UTCTime
+    let todo = (mkDefaultTodo "test1") { M.todoActivatesOn = Just activatesTime }
+    todo' <- M.saveTodo c defaultUser todo
+    todo' @?= todo { M.todoId = mkTodoId 1 }
+    Just activatesTime @?= M.todoActivatesOn todo'
+    updated <- M.saveTodo c defaultUser (todo' { M.todoText = "updated text"
+                                               , M.todoActivatesOn = Just activatesTime2 })
+    "updated text" @=? M.todoText updated
+    mkTodoId 1 @=? M.todoId updated
+    Just activatesTime2 @?= M.todoActivatesOn updated
+    todos <- M.listTodos c defaultUser
+    [updated] @=? todos
+
 testNewTag :: Test
 testNewTag = testCase "new tag" $ do
   withNewDb $ \c -> do
-    let todo = (M.Todo Nothing "test1" False [])
+    let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
     let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
@@ -75,7 +97,7 @@ testNewTag = testCase "new tag" $ do
 testRemoveTag :: Test
 testRemoveTag = testCase "remove tag" $ do
   withNewDb $ \c -> do
-    let t = (M.Todo Nothing "test1" False [])
+    let t = mkDefaultTodo "test1"
     todo <- M.saveTodo c defaultUser t
     let todoId_ = fromJust . M.todoId $ todo
     tag <- M.newTag c defaultUser "foo"
@@ -99,7 +121,7 @@ testRemoveTag = testCase "remove tag" $ do
 testNewTagDupes :: Test
 testNewTagDupes = testCase "duplicate tags" $ do
   withNewDb $ \c -> do
-    let todo = (M.Todo Nothing "test1" False [])
+    let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
     let todoId_ = fromJust . M.todoId $ todo'
     tag <- M.newTag c defaultUser "foo"
@@ -113,7 +135,7 @@ testNewTagDupes = testCase "duplicate tags" $ do
 testNewTagDupesMultiUser :: Test
 testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $ do
   withNewDb $ \c -> do
-    let t = (M.Todo Nothing "test1" False [])
+    let t = mkDefaultTodo "test1"
     todoUsr1 <- M.saveTodo c defaultUser  t
     todoUsr2 <- M.saveTodo c defaultUser2 t
     let todoId1 = fromJust . M.todoId $ todoUsr1
@@ -207,6 +229,7 @@ main =
       [ mutuallyExclusive $ testGroup "todo tests"
         [ testSaveTodo
         , testUpdateTodo
+        , testUpdateActivatesTodo
         ]
       , mutuallyExclusive $ testGroup "tag tests"
         [ testNewTag
