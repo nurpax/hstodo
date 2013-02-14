@@ -39,7 +39,6 @@ function addTodoTag(todoId, tag)
 
 function activatesOnTests()
 {
-    // Add todo with activatesOn:null
     frisby.create('Create todo with activatesOn:null')
         .post('http://localhost:8000/api/todo',
               {},
@@ -57,7 +56,6 @@ function activatesOnTests()
         })
         .toss();
 
-    // Add todo with activatesOn:null
     frisby.create('Create todo with activatesOn:date')
         .post('http://localhost:8000/api/todo',
               {},
@@ -92,8 +90,28 @@ function activatesOnTests()
 
         })
         .toss();
-}
 
+    var timestamp = new Date();
+    frisby.create('Check JS Date for activatesOn comes back from the server')
+        .post('http://localhost:8000/api/todo',
+              {},
+              { json: {
+                  text: "todo roundtrip",
+                  done: false,
+                  activatesOn: timestamp
+              }
+              })
+        .expectStatus(200)
+        .expectHeaderContains('content-type', 'application/json')
+        .expectJSON({
+            text: "todo roundtrip",
+        })
+        .afterJSON(function (todo) {
+            expect(new Date(todo.activatesOn)).toEqual(timestamp);
+        })
+        .toss();
+
+}
 
 addTodo("test todo 1");
 
