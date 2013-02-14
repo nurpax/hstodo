@@ -15,13 +15,14 @@
     <ul class="unstyled">
       <li ng-repeat="todo in todos | filter:doFilterByTag">
 
-        <label class="checkbox done-{{todo.done}}">
+        <div class="form-inline">
           <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-          {{todo.text}}
-        </label>
+          <label class="btn btn-link done-{{todo.done}}" ng-click="todo.showDetails = !todo.showDetails">
+            {{todo.text}}
+          </label>
+        </div>
 
-
-        <div ng-controller="TodoItemCtrl">
+        <div ng-show="todo.showDetails" ng-controller="TodoItemCtrl">
           <form ng-submit="addTag()">
             <div class="form-inline">
               <input class="input-mini" type="text" ng-model="tagText" size="20"
@@ -33,6 +34,23 @@
           <div class="tags">
             <span class="label label-info" ng-repeat="tag in todo.tags">{{tag.tag}}&nbsp;</span>
           </div>
+
+          <div ng-switch on="todo.showActivatesOn || todo.activatesOn != null">
+            <div class="form-inline">
+              <label>Todo Activates on:</label>
+              <span ng-switch-when="true">
+                <input ng-model="todo.activatesOn" ui-date ui-date-format>
+                <button class="btn btn-mini" ng-click="setActivatesOn(todo)">Set</button>
+              </span>
+              <div ng-switch-default>
+                <button
+                   class="btn btn-mini" ng-click="todo.showActivatesOn = !todo.showActivatesOn">
+                  Set Date
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </li>

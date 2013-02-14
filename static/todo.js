@@ -29,6 +29,11 @@ function TodoCtrl($scope, Todo, Tag, AppState) {
         todo.$save();
     };
 
+    // Persist immediate as clicked on
+    $scope.setActivatesOn = function (todo) {
+        todo.$save();
+    };
+
     $scope.remaining = function() {
         var count = 0;
         angular.forEach($scope.todos, function(todo) {
