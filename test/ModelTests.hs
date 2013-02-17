@@ -87,13 +87,10 @@ testNewTag = testCase "new tag" $
     let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
     let todoId_ = fromJust . M.todoId $ todo'
-    tag <- M.newTag c defaultUser "foo"
-    M.Tag 1 "foo" @=? tag
-    t <- M.addTodoTag c todoId_ tag
-    tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? t
-    t <- M.addTodoTag c todoId_ tag2
-    [tag, tag2] @=? t
+    [t] <- M.addTodoTag c defaultUser todoId_ "foo"
+    "foo" @=? M.tagText t
+    [_,t2] <- M.addTodoTag c defaultUser todoId_ "bar"
+    ["foo", "bar"] @=? map M.tagText [t, t2]
 
 testRemoveTag :: Test
 testRemoveTag = testCase "remove tag" $
@@ -101,14 +98,10 @@ testRemoveTag = testCase "remove tag" $
     let t = mkDefaultTodo "test1"
     todo <- M.saveTodo c defaultUser t
     let todoId_ = fromJust . M.todoId $ todo
-    tag <- M.newTag c defaultUser "foo"
+    [tag] <- M.addTodoTag c defaultUser todoId_ "foo"
     M.Tag 1 "foo" @=? tag
-    t <- M.addTodoTag c todoId_ tag
-    tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? t
-    newTags <- M.addTodoTag c todoId_ tag2
+    [tag, tag2] <- M.addTodoTag c defaultUser todoId_ "bar"
     [t'] <- M.listTodos c defaultUser
-    [tag, tag2] @=? newTags
     [tag, tag2] @=? M.todoTags t'
     newTags <- M.removeTodoTag c todoId_ tag
     [t'] <- M.listTodos c defaultUser
@@ -125,13 +118,15 @@ testNewTagDupes = testCase "duplicate tags" $
     let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
     let todoId_ = fromJust . M.todoId $ todo'
-    tag <- M.newTag c defaultUser "foo"
-    M.Tag 1 "foo" @=? tag
-    t <- M.addTodoTag c todoId_ tag
-    [tag] @=? t
+    [t] <- M.addTodoTag c defaultUser todoId_ "foo"
+    M.Tag 1 "foo" @=? t
+    "foo" @=? M.tagText t
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTodoTag c todoId_ tag
-    [tag] @=? t
+    [t] <- M.addTodoTag c defaultUser todoId_ "foo"
+    "foo" @=? M.tagText t
+
+takeTodoId :: M.Todo -> M.TodoId
+takeTodoId = fromJust . M.todoId
 
 testNewTagDupesMultiUser :: Test
 testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $
@@ -139,19 +134,12 @@ testNewTagDupesMultiUser = testCase "duplicate tags (multi-user)" $
     let t = mkDefaultTodo "test1"
     todoUsr1 <- M.saveTodo c defaultUser  t
     todoUsr2 <- M.saveTodo c defaultUser2 t
-    let todoId1 = fromJust . M.todoId $ todoUsr1
-        todoId2 = fromJust . M.todoId $ todoUsr2
-    tagUsr1 <- M.newTag c defaultUser "foo"
-    tagUsr2 <- M.newTag c defaultUser2 "foo"
-    M.Tag 1 "foo" @=? tagUsr1
-    M.Tag 2 "foo" @=? tagUsr2
-    t <- M.addTodoTag c todoId1 tagUsr1
-    [tagUsr1] @=? t
+    t <- M.addTodoTag c defaultUser (takeTodoId todoUsr1) "foo"
     -- Second addTag shouldn't lead to a todo having the same twice
-    t <- M.addTodoTag c todoId1 tagUsr1
-    [tagUsr1] @=? t
-    t <- M.addTodoTag c todoId2 tagUsr2
-    [tagUsr2] @=? t
+    t1 <- M.addTodoTag c defaultUser (takeTodoId todoUsr1) "foo"
+    ["foo"] @=? map M.tagText t1
+    t2 <- M.addTodoTag c defaultUser2 (takeTodoId todoUsr2) "foo"
+    ["foo"] @=? map M.tagText t2
 
 testSaveNote :: Test
 testSaveNote = testCase "save note" $
@@ -189,13 +177,10 @@ testTagNote = testCase "tag a note" $
     let note = M.Note Nothing "test1 title" "test1 body" []
     note' <- M.saveNote c defaultUser note
     let noteId_ = fromJust . M.noteId $ note'
-    tag <- M.newTag c defaultUser "foo"
-    M.Tag 1 "foo" @=? tag
-    t <- M.addNoteTag c noteId_ tag
-    tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? t
-    t <- M.addNoteTag c noteId_ tag2
-    [tag, tag2] @=? t
+    t1 <- M.addNoteTag c defaultUser noteId_ "foo"
+    t2 <- M.addNoteTag c defaultUser noteId_ "bar"
+    ["foo"] @=? map M.tagText t1
+    ["foo", "bar"] @=? map M.tagText t2
 
 testRemoveTagNote :: Test
 testRemoveTagNote = testCase "remove tag" $
@@ -203,15 +188,10 @@ testRemoveTagNote = testCase "remove tag" $
     let t = M.Note Nothing "test1 title" "test1 body" []
     note <- M.saveNote c defaultUser t
     let noteId_ = fromJust . M.noteId $ note
-    tag <- M.newTag c defaultUser "foo"
-    M.Tag 1 "foo" @=? tag
-    t <- M.addNoteTag c noteId_ tag
-    tag2 <- M.newTag c defaultUser "bar"
-    [tag] @=? t
-    newTags <- M.addNoteTag c noteId_ tag2
-    [t'] <- M.listNotes c defaultUser
-    [tag, tag2] @=? newTags
-    [tag, tag2] @=? M.noteTags t'
+    [tag] <- M.addNoteTag c defaultUser noteId_ "foo"
+    [_,tag2] <- M.addNoteTag c defaultUser noteId_ "bar"
+    [n] <- M.listNotes c defaultUser
+    ["foo", "bar"] @=? map M.tagText (M.noteTags n)
     newTags <- M.removeNoteTag c noteId_ tag
     [t'] <- M.listNotes c defaultUser
     [tag2] @=? newTags

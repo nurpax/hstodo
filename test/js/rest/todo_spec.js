@@ -147,4 +147,26 @@ frisby.create('List two tagged todos')
                  {id: 2, text: "test todo 2", tags:[{tag:"tag2"}]}])
   .toss();
 
+
+frisby.create('List tags - check we can find tag1 and tag2')
+    .get('http://localhost:8000/api/tag',
+          {},
+          {})
+    .expectStatus(200)
+    .expectHeaderContains('content-type', 'application/json')
+    .afterJSON(function (tags) {
+        var foundTag1 = null;
+        var foundTag2 = null;
+        for (var i = 0; i < tags.length; i++) {
+            if (tags[i].tag == 'tag1')
+                foundTag1 = tags[i].id;
+            if (tags[i].tag == 'tag2')
+                foundTag2 = tags[i].id;
+        }
+        expect(foundTag1).not.toBe(null);
+        expect(foundTag2).not.toBe(null);
+    })
+    .toss();
+
+
 activatesOnTests();

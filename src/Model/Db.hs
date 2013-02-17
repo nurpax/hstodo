@@ -2,7 +2,6 @@
 
 module Model.Db (
     createTables
-  , newTag
   , tagNameExists
   , listTags
     -- * Todos
@@ -209,14 +208,16 @@ saveTodo conn user@(User uid _) t =
       execute conn q (todoText t, todoDone t, todoActivatesOn t, uid, unTodoId tid)
       fromJust <$> queryTodo conn user tid
 
-addTodoTag :: Connection -> TodoId -> Tag -> IO [Tag]
-addTodoTag c (TodoId todo) = tagObject c TagTodo todo
+addTodoTag :: Connection -> User -> TodoId -> T.Text -> IO [Tag]
+addTodoTag c user (TodoId todo) text =
+  newTag c user text >>= tagObject c TagTodo todo
 
 removeTodoTag :: Connection -> TodoId -> Tag -> IO [Tag]
 removeTodoTag c (TodoId todo) = untagObject c TagTodo todo
 
-addNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
-addNoteTag c (NoteId note) = tagObject c TagNote note
+addNoteTag :: Connection -> User -> NoteId -> T.Text -> IO [Tag]
+addNoteTag c user (NoteId note) text =
+  newTag c user text >>= tagObject c TagNote note
 
 removeNoteTag :: Connection -> NoteId -> Tag -> IO [Tag]
 removeNoteTag c (NoteId note) = untagObject c TagNote note

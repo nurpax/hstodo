@@ -149,21 +149,11 @@ handleNotes =
 -- TODO lot of duplicate code here, find a way to reuse
 handleTags :: H ()
 handleTags =
-  method GET  (withLoggedInUser getTags) <|>
-  method POST (withLoggedInUser saveTag)
+  method GET  (withLoggedInUser getTags)
   where
     getTags user = do
       tags <- withDb $ \conn -> M.listTags conn user
       writeJSON tags
-
-    saveTag user = do
-      newTag <- getJSON
-      either (liftIO . print) persist newTag
-        where
-          persist tag =
-            -- TODO this will never update the tag?? is that ok?
-            withDb (\conn -> M.newTag conn user tag) >>= writeJSON
-
 
 data AddTagParams =
   AddTagParams
@@ -184,11 +174,9 @@ handleTodosAddTag =
     go user =
       getJSON >>= either (liftIO . print) addTag
       where
-        addTag :: AddTagParams -> H ()
         addTag AddTagParams{..} = do
           Just tag <- withDb $ \c -> do
-            newTag <- M.newTag c user atpTag
-            M.addTodoTag c (M.TodoId atpObjectId) newTag
+            M.addTodoTag c user (M.TodoId atpObjectId) atpTag
             M.queryTodo c user (M.TodoId atpObjectId)
           writeJSON tag
 
@@ -199,11 +187,9 @@ handleNotesAddTag =
     go user =
       getJSON >>= either (liftIO . print) addTag
       where
-        addTag :: AddTagParams -> H ()
         addTag AddTagParams{..} = do
           Just tag <- withDb $ \c -> do
-            newTag <- M.newTag c user atpTag
-            M.addNoteTag c (M.NoteId atpObjectId) newTag
+            M.addNoteTag c user (M.NoteId atpObjectId) atpTag
             M.queryNote c user (M.NoteId atpObjectId)
           writeJSON tag
 
