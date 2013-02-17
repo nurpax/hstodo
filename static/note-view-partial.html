@@ -1,11 +1,12 @@
 <div class="row" ng-controller="ViewNoteCtrl">
   <div class="span8">
 
-    <label>{{note.title}}</label>
+    <h1>{{note.title}}</h1>
 
     <markdown content="note.text">
     </markdown>
 
+    <hr/>
     <a class="btn btn-primary" href="#/notes/edit/{{note.id}}">Edit</a>
 
   </div>

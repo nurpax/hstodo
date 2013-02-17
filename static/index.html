@@ -24,7 +24,7 @@
 
     <link rel="stylesheet" href="style.css">
   </head>
-  <body data-twttr-rendered="true">
+  <body>
 
     <header class="navbar navbar-fixed-top">
       <div class="navbar-inner" ng-controller="NavList">
@@ -54,17 +54,8 @@
     <div role="main">
       <div class="container">
         <section id="todos">
-          <h1>Thask manager</h1>
+          <div ng-view></div>
         </section>
-
-        <div ng-view></div>
-
-<!--
-	<ng-form name="dateForm">
-	  <p><input name="dateField" value="Click Here for Datepicker" ng-model="date" ui-date></p>
-	</ng-form>
--->
-
       </div>
     </div>
 

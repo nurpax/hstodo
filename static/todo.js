@@ -71,7 +71,7 @@ function TodoCtrl($scope, Todo, Tag, AppState) {
 
 function NavList($scope, $location) {
     $scope.navClass = function (page) {
-        var currentRoute = $location.path().substring(1) || 'home';
+        var currentRoute = $location.path().split('/')[1] || 'home';
         return page === currentRoute ? 'active' : '';
     };
 }
