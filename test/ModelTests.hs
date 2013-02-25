@@ -5,7 +5,7 @@ import           Control.Monad
 import           Data.Int (Int64)
 import           Data.Maybe (fromJust)
 import qualified Data.Text as T
-import           Data.Time (UTCTime)
+import           Data.Time (UTCTime, getCurrentTime, secondsToDiffTime, addUTCTime)
 import           Prelude hiding (catch)
 import           Test.Framework
 import           Test.Framework.Providers.HUnit
@@ -34,25 +34,28 @@ mkTodoId = Just . M.TodoId . fromIntegral
 mkNoteId :: Integral n => n -> Maybe M.NoteId
 mkNoteId = Just . M.NoteId . fromIntegral
 
+defaultListTodos :: S.Connection -> M.User -> IO [M.Todo]
+defaultListTodos c u = M.listTodos c u Nothing
+
 testSaveTodo :: Test
 testSaveTodo = testCase "save todo" $
   withNewDb $ \c -> do
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [] @=? todos
     let todo1 = mkDefaultTodo "test1"
     let todo2 = mkDefaultTodo "test2"
     todo1' <- M.saveTodo c defaultUser todo1
     todo1' @?= todo1 { M.todoId = mkTodoId 1 }
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [todo1'] @=? todos
     todo2' <- M.saveTodo c defaultUser todo2
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [todo1', todo2'] @=? todos
 
 testUpdateTodo :: Test
 testUpdateTodo = testCase "update todo" $
   withNewDb $ \c -> do
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [] @=? todos
     let todo = mkDefaultTodo "test1"
     todo' <- M.saveTodo c defaultUser todo
@@ -60,7 +63,7 @@ testUpdateTodo = testCase "update todo" $
     updated <- M.saveTodo c defaultUser (todo' { M.todoText = "updated text" })
     "updated text" @=? M.todoText updated
     mkTodoId 1 @=? M.todoId updated
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [updated] @=? todos
 
 testUpdateActivatesTodo :: Test
@@ -78,8 +81,51 @@ testUpdateActivatesTodo = testCase "update todo activates" $
     "updated text" @=? M.todoText updated
     mkTodoId 1 @=? M.todoId updated
     Just activatesTime2 @?= M.todoActivatesOn updated
-    todos <- M.listTodos c defaultUser
+    todos <- defaultListTodos c defaultUser
     [updated] @=? todos
+
+testActivatesList :: Test
+testActivatesList = testCase "get list of todos based on activatesOn" $
+  withNewDb $ \c -> do
+    let activatesTime  = read "2012-08-20 00:00:00" :: UTCTime
+    today <- getCurrentTime
+    let todo = (mkDefaultTodo "test1") { M.todoActivatesOn = Just activatesTime }
+    todo' <- M.saveTodo c defaultUser todo
+    todos <- M.listTodos c defaultUser Nothing
+    todos @=? [todo']
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    todos @=? [todo']
+
+testActivatesList2 :: Test
+testActivatesList2 = testCase "get list of todos based on activatesOn" $
+  withNewDb $ \c -> do
+    today <- getCurrentTime
+    let todo = (mkDefaultTodo "test1") { M.todoActivatesOn = Just today }
+    todo' <- M.saveTodo c defaultUser todo
+    todos <- M.listTodos c defaultUser Nothing
+    todos @?= [todo']
+    -- Should still find the created todo
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    todos @?= [todo']
+    -- Spoof list filter one day earlier - so that the todo we created
+    -- above appears to trigger tomorrow -> shouldn't show up on the
+    -- list.
+    let yesterday = addUTCTime (-60*60*24) today
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just yesterday)
+    todos @?= []
+
+testActivatesList3 :: Test
+testActivatesList3 = testCase "get list of todos based on activatesOn" $
+  withNewDb $ \c -> do
+    today <- getCurrentTime
+    let todo = (mkDefaultTodo "test1") { M.todoActivatesOn = Nothing }
+    todo' <- M.saveTodo c defaultUser todo
+    todos <- M.listTodos c defaultUser Nothing
+    [todo'] @=? todos
+    -- Should still find the created todo
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    [todo'] @=? todos
+
 
 testNewTag :: Test
 testNewTag = testCase "new tag" $
@@ -101,14 +147,14 @@ testRemoveTag = testCase "remove tag" $
     [tag] <- M.addTodoTag c defaultUser todoId_ "foo"
     M.Tag 1 "foo" @=? tag
     [tag, tag2] <- M.addTodoTag c defaultUser todoId_ "bar"
-    [t'] <- M.listTodos c defaultUser
+    [t'] <- defaultListTodos c defaultUser
     [tag, tag2] @=? M.todoTags t'
     newTags <- M.removeTodoTag c todoId_ tag
-    [t'] <- M.listTodos c defaultUser
+    [t'] <- defaultListTodos c defaultUser
     [tag2] @=? newTags
     [tag2] @=? M.todoTags t'
     t <- M.removeTodoTag c todoId_ tag2
-    [t'] <- M.listTodos c defaultUser
+    [t'] <- defaultListTodos c defaultUser
     [] @=? t
     [] @=? M.todoTags t'
 
@@ -211,6 +257,9 @@ main =
         [ testSaveTodo
         , testUpdateTodo
         , testUpdateActivatesTodo
+        , testActivatesList
+        , testActivatesList2
+        , testActivatesList3
         ]
       , mutuallyExclusive $ testGroup "tag tests"
         [ testNewTag

@@ -4,9 +4,16 @@ angular.module('todoServices', ['ngResource']).
     factory('Todo', function($resource) {
         // AngularJS doesn't appear to support multiple URLs for
         // resources, hence the double $resource trickery here
+
+        // TODO timestamp gets converted into "isodatehere" when it's
+        // run through params conversion.  Another option would be to
+        // just stick "new Date()" into activatesDate below, but that
+        // converts the date into a string format the server can't
+        // parse.  D'oh.
+        var timestamp = (new Date()).toISOString();
         var defr =
             $resource('/api/todo', {}, {
-                query:  {method:'GET', isArray:true},
+                query:  {method:'GET', params:{activatesDate:timestamp}, isArray:true},
                 save:   {method:'POST'}
             });
         var addTagRes =

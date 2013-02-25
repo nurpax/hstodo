@@ -6,6 +6,7 @@ module Model.Types (
   , NoteId(..)
   , Tag(..)
   , Todo(..)
+  , TodoFilter(..)
   , TodoId(..)
   ) where
 
@@ -35,6 +36,14 @@ data Todo =
   , todoDone        :: Bool
   , todoActivatesOn :: Maybe UTCTime
   , todoTags        :: [Tag]
+  } deriving (Show, Eq)
+
+-- Filter for listing todo items
+data TodoFilter =
+  TodoFilter
+  {
+    -- List only elements that have activatesOn earlier than tfActivatedDate
+    tfActivatedDate :: Maybe UTCTime
   } deriving (Show, Eq)
 
 data Note =
@@ -75,6 +84,10 @@ instance ToJSON Todo where
            , "tags"        .= tags
            ]
 
+instance FromJSON TodoFilter where
+  parseJSON (Object v) =
+    TodoFilter <$> optional (v .: "activatedDate")
+  parseJSON _ = mzero
 
 instance FromJSON Note where
   parseJSON (Object v) =

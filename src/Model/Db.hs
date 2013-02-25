@@ -168,12 +168,20 @@ listTodoTags :: Connection -> TodoId -> IO [Tag]
 listTodoTags c (TodoId todo) = listObjectTags c TagTodo todo
 
 -- | Retrieve a user's list of todos
-listTodos' :: Connection -> User -> Maybe TodoId -> IO [Todo]
-listTodos' conn (User uid _) todoId_  = do
+listTodos' :: Connection -> User -> Maybe TodoFilter -> Maybe TodoId -> IO [Todo]
+listTodos' conn (User uid _) listFilter todoId_  = do
   todos <-
     case todoId_ of
       Nothing ->
-        query conn "SELECT id,text,done,activates_on FROM todos WHERE user_id = ?" (Only uid)
+        case listFilter of
+          Just (TodoFilter (Just activationDate)) ->
+            let q = Query $ T.concat [ "SELECT id,text,done,activates_on FROM todos "
+                                     , "WHERE user_id = ? "
+                                     , "AND ((activates_on IS NULL) OR (activates_on <= ?))"
+                                     ]
+            in query conn q (uid, activationDate)
+          _ ->
+            query conn "SELECT id,text,done,activates_on FROM todos WHERE user_id = ?" (Only uid)
       Just (TodoId tid) ->
         query conn "SELECT id,text,done,activates_on FROM todos WHERE (user_id = ? AND id = ?)" (uid, tid)
   mapM queryTags todos
@@ -182,12 +190,12 @@ listTodos' conn (User uid _) todoId_  = do
       tags <- listTodoTags conn (fromJust . todoId $ todo)
       return $ todo { todoTags = tags }
 
-listTodos :: Connection -> User -> IO [Todo]
-listTodos c u = listTodos' c u Nothing
+listTodos :: Connection -> User -> Maybe TodoFilter -> IO [Todo]
+listTodos c u f = listTodos' c u f Nothing
 
 queryTodo :: Connection -> User -> TodoId -> IO (Maybe Todo)
 queryTodo conn user todoId_ =
-  listToMaybe <$> listTodos' conn user (Just todoId_)
+  listToMaybe <$> listTodos' conn user Nothing (Just todoId_)
 
 -- | Save or update a todo
 saveTodo :: Connection -> User -> Todo -> IO Todo

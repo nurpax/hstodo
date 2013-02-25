@@ -26,6 +26,8 @@ import           Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
+import           Data.Time (UTCTime)
+import           Data.Time.Format (parseTime)
 import           Database.SQLite.Simple as S
 import           Snap.Core
 import           Snap.Snaplet
@@ -36,6 +38,7 @@ import           Snap.Snaplet.Session.Backends.CookieSession
 import           Snap.Snaplet.SqliteSimple
 import           Snap.Util.FileServe
 import           Snap.Extras.JSON
+import           System.Locale    (defaultTimeLocale)
 import           Heist()
 import qualified Heist.Interpreted as I
 ------------------------------------------------------------------------------
@@ -121,11 +124,18 @@ handleTodos =
   method GET  (withLoggedInUser get) <|>
   method POST (withLoggedInUser save)
   where
-    get user = withDb (`M.listTodos` user) >>= writeJSON
+    get user = do
+      date <- getParam "activatesDate"
+      let queryFilter = fmap (M.TodoFilter . decodeDate) date
+      withDb (\c -> M.listTodos c user queryFilter) >>= writeJSON
 
     save user = logRunEitherT $ do
       todo <- lift getJSON >>= hoistEither
       return $ withDb (\conn -> M.saveTodo conn user todo) >>= writeJSON
+
+    decodeDate :: ByteString -> Maybe UTCTime
+    decodeDate s =
+      parseTime defaultTimeLocale "%Y-%m-%dT%T%QZ" (T.unpack . T.decodeUtf8 $ s)
 
 handleNotes :: H ()
 handleNotes =

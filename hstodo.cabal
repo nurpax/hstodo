@@ -22,7 +22,7 @@ Executable hstodo
   Build-depends:
     base                      >= 4       && < 5,
     aeson                     >= 0.6,
-    bytestring                >= 0.9.1   && < 0.11,
+    bytestring                >= 0.10.1  && < 0.11,
     configurator              >= 0.2.0,
     heist                     >= 0.10    && < 0.12,
     lens                      >= 3.7.0.1 && < 3.9,
@@ -38,7 +38,8 @@ Executable hstodo
     text                      >= 0.11    && < 0.12,
     time                      >= 1.1     && < 1.5,
     either                    >= 3       && < 4,
-    errors                    >= 1.3     && < 1.5
+    errors                    >= 1.3     && < 1.5,
+    old-locale
 
   if flag(development)
     build-depends:
