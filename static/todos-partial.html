@@ -17,12 +17,12 @@
 
         <div class="form-inline">
           <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
-          <label class="btn btn-link done-{{todo.done}}" ng-click="todo.showDetails = !todo.showDetails">
+          <label class="btn btn-link done-{{todo.done}}" ng-click="toggleShowDetails(todo)">
             {{todo.text}}
           </label>
         </div>
 
-        <div ng-show="todo.showDetails" ng-controller="TodoItemCtrl">
+        <div ng-show="showDetails(todo)" ng-controller="TodoItemCtrl">
           <form ng-submit="addTag()">
             <div class="form-inline">
               <input class="input-mini" type="text" ng-model="tagText" size="20"

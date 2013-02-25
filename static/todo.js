@@ -15,6 +15,7 @@ function TodoCtrl($scope, Todo, Tag, AppState) {
     AppState.setTags(Tag.query());
 
     $scope.todos = Todo.query();
+    $scope.todoShowDetails = [];
 
     $scope.addTodo = function() {
         var newTodo = { text:$scope.todoText, done:false };
@@ -28,6 +29,14 @@ function TodoCtrl($scope, Todo, Tag, AppState) {
     $scope.checkTodo = function (todo) {
         todo.$save();
     };
+
+    $scope.toggleShowDetails = function (todo) {
+        $scope.todoShowDetails[todo.id] = !$scope.todoShowDetails[todo.id];
+    }
+
+    $scope.showDetails = function (todo) {
+        return $scope.todoShowDetails[todo.id];
+    }
 
     // Persist immediate as clicked on
     $scope.setActivatesOn = function (todo) {
