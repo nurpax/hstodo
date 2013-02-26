@@ -37,6 +37,16 @@ function addTodoTag(todoId, tag)
         .toss();
 }
 
+function findById(lst, id)
+{
+    var found = null;
+    for (var i = 0; i < lst.length; i++) {
+        if (lst[i].id == id)
+            found = lst[i];
+    }
+    return found;
+}
+
 function activatesOnTests()
 {
     frisby.create('Create todo with activatesOn:null')
@@ -79,11 +89,7 @@ function activatesOnTests()
                 .expectStatus(200)
                 .expectHeaderContains('content-type', 'application/json')
                 .afterJSON(function (lst) {
-                    var found = null;
-                    for (var i = 0; i < lst.length; i++) {
-                        if (lst[i].id == todo.id)
-                            found = lst[i];
-                    }
+                    var found = findById(lst, todo.id);
                     expect(found).not.toBe(null);
                 })
                 .toss();
@@ -107,6 +113,46 @@ function activatesOnTests()
             text: "todo roundtrip",
         })
         .afterJSON(function (todo) {
+            expect(new Date(todo.activatesOn)).toEqual(timestamp);
+        })
+        .toss();
+
+    var timestamp = new Date();
+    frisby.create('Check JS Date for activatesOn comes back from the server')
+        .post('http://localhost:8000/api/todo',
+              {},
+              { json: {
+                  text: "active",
+                  done: false,
+                  activatesOn: timestamp
+              }
+              })
+        .expectJSON({
+            text: "active",
+        })
+        .afterJSON(function (todo) {
+            // Spawn a new test on created todo response.  Test that
+            // the created todo is still in the response
+            var ts = timestamp.toISOString();
+            frisby.create('Should find todo on activatesDate being same as todo.activatesOn')
+                .get('http://localhost:8000/api/todo/?activatesDate='+ts)
+                .expectStatus(200)
+                .afterJSON(function (lst) {
+                    var found = findById(lst, todo.id);
+                    expect(found).not.toBe(null);
+                })
+                .toss();
+            expect(new Date(todo.activatesOn)).toEqual(timestamp);
+
+            var ts = new Date(timestamp - 5).toISOString();
+            frisby.create('Should NOT find todo as activatesDate is in the future')
+                .get('http://localhost:8000/api/todo/?activatesDate='+ts)
+                .expectStatus(200)
+                .afterJSON(function (lst) {
+                    var found = findById(lst, todo.id);
+                    expect(found).toBe(null);
+                })
+                .toss();
             expect(new Date(todo.activatesOn)).toEqual(timestamp);
         })
         .toss();
