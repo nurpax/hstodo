@@ -170,17 +170,25 @@ listTodoTags c (TodoId todo) = listObjectTags c TagTodo todo
 -- | Retrieve a user's list of todos
 listTodos' :: Connection -> User -> Maybe TodoFilter -> Maybe TodoId -> IO [Todo]
 listTodos' conn (User uid _) listFilter todoId_  = do
+  let fields = "id, text, done, activates_on"
   todos <-
     case todoId_ of
       Nothing ->
         case listFilter of
-          Just (TodoFilter (Just activationDate)) ->
-            let q = Query $ T.concat [ "SELECT id,text,done,activates_on FROM todos "
+          Just (TodoFilter includeDone (Just activationDate)) ->
+            let q = Query $ T.concat [ "SELECT ", fields, " FROM todos "
                                      , "WHERE user_id = ? "
-                                     , "AND ((activates_on IS NULL) OR (activates_on <= ?))"
+                                     , "AND ((activates_on IS NULL) OR (activates_on <= ?)) "
+                                     , "AND ((done = 0) OR (done = ?))"
                                      ]
-            in query conn q (uid, activationDate)
-          _ ->
+            in query conn q (uid, activationDate, includeDone)
+          Just (TodoFilter includeDone Nothing) ->
+            let q = Query $ T.concat [ "SELECT ", fields, " FROM todos "
+                                     , "WHERE user_id = ? "
+                                     , "AND ((done = 0) OR (done = ?))"
+                                     ]
+            in query conn q (uid, includeDone)
+          Nothing ->
             query conn "SELECT id,text,done,activates_on FROM todos WHERE user_id = ?" (Only uid)
       Just (TodoId tid) ->
         query conn "SELECT id,text,done,activates_on FROM todos WHERE (user_id = ? AND id = ?)" (uid, tid)

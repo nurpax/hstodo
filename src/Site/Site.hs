@@ -125,8 +125,10 @@ handleTodos =
   method POST (withLoggedInUser save)
   where
     get user = do
-      date <- getParam "activatesDate"
-      let queryFilter = fmap (M.TodoFilter . decodeDate) date
+      date        <- getParam "activatesDate"
+      includeDone <- getParam "includeDone"
+      -- TODO this is getting ugly
+      let queryFilter = fmap (M.TodoFilter (fromMaybe True (fmap readBool includeDone)) . decodeDate) date
       withDb (\c -> M.listTodos c user queryFilter) >>= writeJSON
 
     save user = logRunEitherT $ do
@@ -136,6 +138,11 @@ handleTodos =
     decodeDate :: ByteString -> Maybe UTCTime
     decodeDate s =
       parseTime defaultTimeLocale "%Y-%m-%dT%T%QZ" (T.unpack . T.decodeUtf8 $ s)
+
+    readBool :: ByteString -> Bool
+    readBool "true"  = True
+    readBool "false" = False
+    readBool _       = error "invalid bool get parameter in todo filter params"
 
 handleNotes :: H ()
 handleNotes =

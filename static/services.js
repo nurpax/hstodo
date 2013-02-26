@@ -13,7 +13,11 @@ angular.module('todoServices', ['ngResource']).
         var timestamp = (new Date()).toISOString();
         var defr =
             $resource('/api/todo', {}, {
-                query:  {method:'GET', params:{activatesDate:timestamp}, isArray:true},
+                query:  {method:'GET',
+                         params:{
+                             includeDone:false,
+                             activatesDate:timestamp
+                         }, isArray:true},
                 save:   {method:'POST'}
             });
         var addTagRes =

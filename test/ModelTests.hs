@@ -26,7 +26,7 @@ withNewDb action =
   bracket (S.open ":memory:") S.close (\c -> M.createTables c >> action c)
 
 mkDefaultTodo :: T.Text -> M.Todo
-mkDefaultTodo text = M.Todo Nothing "test1" False Nothing []
+mkDefaultTodo text = M.Todo Nothing text False Nothing []
 
 mkTodoId :: Integral n => n -> Maybe M.TodoId
 mkTodoId = Just . M.TodoId . fromIntegral
@@ -93,7 +93,7 @@ testActivatesList = testCase "get list of todos based on activatesOn" $
     todo' <- M.saveTodo c defaultUser todo
     todos <- M.listTodos c defaultUser Nothing
     todos @=? [todo']
-    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    todos <- M.listTodos c defaultUser (Just (M.TodoFilter True (Just today)))
     todos @=? [todo']
 
 testActivatesList2 :: Test
@@ -105,13 +105,13 @@ testActivatesList2 = testCase "get list of todos based on activatesOn" $
     todos <- M.listTodos c defaultUser Nothing
     todos @?= [todo']
     -- Should still find the created todo
-    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter True $ Just today)
     todos @?= [todo']
     -- Spoof list filter one day earlier - so that the todo we created
     -- above appears to trigger tomorrow -> shouldn't show up on the
     -- list.
     let yesterday = addUTCTime (-60*60*24) today
-    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just yesterday)
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter True $ Just yesterday)
     todos @?= []
 
 testActivatesList3 :: Test
@@ -123,8 +123,20 @@ testActivatesList3 = testCase "get list of todos based on activatesOn" $
     todos <- M.listTodos c defaultUser Nothing
     [todo'] @=? todos
     -- Should still find the created todo
-    todos <- M.listTodos c defaultUser (Just . M.TodoFilter $ Just today)
+    todos <- M.listTodos c defaultUser (Just . M.TodoFilter True $ Just today)
     [todo'] @=? todos
+
+testListUndone :: Test
+testListUndone = testCase "get list undone todos" $
+  withNewDb $ \c -> do
+    let todo1 = (mkDefaultTodo "test1") { M.todoDone = True }
+    let todo2 = (mkDefaultTodo "test2") { M.todoDone = False }
+    todo1' <- M.saveTodo c defaultUser todo1
+    todo2' <- M.saveTodo c defaultUser todo2
+    todos <- M.listTodos c defaultUser Nothing
+    [todo1', todo2'] @=? todos
+    todos <- M.listTodos c defaultUser (Just $ M.TodoFilter False Nothing)
+    [todo2'] @=? todos
 
 
 testNewTag :: Test
@@ -260,6 +272,7 @@ main =
         , testActivatesList
         , testActivatesList2
         , testActivatesList3
+        , testListUndone
         ]
       , mutuallyExclusive $ testGroup "tag tests"
         [ testNewTag

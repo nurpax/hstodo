@@ -42,8 +42,9 @@ data Todo =
 data TodoFilter =
   TodoFilter
   {
+    tfIncludeDone   :: Bool
     -- List only elements that have activatesOn earlier than tfActivatedDate
-    tfActivatedDate :: Maybe UTCTime
+  , tfActivatedDate :: Maybe UTCTime
   } deriving (Show, Eq)
 
 data Note =
@@ -83,11 +84,6 @@ instance ToJSON Todo where
            , "activatesOn" .= activatesOn
            , "tags"        .= tags
            ]
-
-instance FromJSON TodoFilter where
-  parseJSON (Object v) =
-    TodoFilter <$> optional (v .: "activatedDate")
-  parseJSON _ = mzero
 
 instance FromJSON Note where
   parseJSON (Object v) =
