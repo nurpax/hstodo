@@ -13,7 +13,7 @@
 
 
     <ul class="unstyled">
-      <li ng-repeat="todo in todos | filter:doFilterByTag">
+      <li ng-repeat="todo in todos | filter:doFilterByTag | orderBy:['done', 'id']">
 
         <div class="form-inline">
           <input type="checkbox" ng-model="todo.done" ng-click="checkTodo(todo)">
